@@ -61,6 +61,24 @@ No install needed; people just open a link (Safari/Chrome). On iPhone: Share > *
 Or from the terminal: `npm i -g vercel && vercel --prod`.
 Test locally: `npm run build:web && npx serve dist`.
 
+## Security checklist (do before the event)
+What is already protected: the database itself decides who can write (row level security), not only the app. Guests can only read;
+a committee account can only write in its assigned games; only admins can create accounts, name teams, reset or delete.
+The Supabase `service_role` key is only inside the Edge Function on Supabase, never in the app or on Vercel.
+The `anon` key in the app is public by design (it can only do what the rules allow).
+
+Please also do these (a few minutes, in the dashboards):
+1. **Supabase > Authentication > Providers > Email**: turn OFF *Allow new users to sign up*.
+2. **Supabase > Authentication > Policies/Sign in**: set the minimum password length to 8 or more.
+3. Use strong, unique passwords for admin accounts. The app generates 8-character random passwords for new accounts.
+4. Turn on 2-step verification (MFA) for your Supabase, Vercel and GitHub accounts. Keep the GitHub repo **private**.
+5. Never put the `service_role` key, the `.env` file, or database password in the repo, in Vercel variables, or in chat.
+   If a key leaks: Supabase > Project Settings > API > rotate the keys, then update Vercel and redeploy.
+6. Delete accounts that are no longer needed (Admin > Manage accounts). Reset a password if a phone was lost.
+7. Before the event: Supabase > Database > Backups (or SQL Editor export of the `sf_` tables) so results can be restored.
+8. Re-run `supabase/schema.sql` after each update of the app (it is safe to run again).
+`vercel.json` already sends security headers (no framing, no sniffing, HTTPS only).
+
 ## How scoring works
 - **Winner only** for most games: open a game, tap **Select winner**, choose the team, confirm. The winner moves to the next match; the loser is **Eliminated**.
 - **Points are encoded** (both teams) for: **Pickleball** (all matches), and the **championship round of Darts and Sungka**.

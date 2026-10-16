@@ -40,7 +40,7 @@ export async function handle(authHeader: string | null, body: any, deps: Deps): 
     const role = body.role === 'admin' ? 'admin' : 'committee';
     const gameIds: string[] = Array.isArray(body.gameIds) ? [...new Set<string>(body.gameIds.map(String))].slice(0, 50) : [];
     if (!USERNAME.test(username)) return fail(400, 'The username needs 3-30 characters: letters, numbers, dot, dash or underscore.');
-    if (password.length < 6) return fail(400, 'The password needs at least 6 characters.');
+    if (password.length < 8) return fail(400, 'The password needs at least 8 characters.');
     if (!fullName) return fail(400, 'Enter the name of the person.');
 
     let created: { id: string };
@@ -78,7 +78,7 @@ export async function handle(authHeader: string | null, body: any, deps: Deps): 
     const userId = String(body.userId || '');
     const password = String(body.password || '');
     if (!userId) return fail(400, 'Missing account.');
-    if (password.length < 6) return fail(400, 'The password needs at least 6 characters.');
+    if (password.length < 8) return fail(400, 'The password needs at least 8 characters.');
     if (!(await deps.staffExists(userId))) return fail(404, 'Account not found.');
     try {
       await deps.setPassword(userId, password);

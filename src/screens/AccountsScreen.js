@@ -73,8 +73,8 @@ function NewAccountDialog({ visible, onClose, onCreated, api }) {
     ? 'Enter the name of the person.'
     : !USERNAME_RULE.test(username)
     ? 'Username: 3-30 characters, letters, numbers, dot, dash or underscore (no spaces).'
-    : f.password.length < 6
-    ? 'The password needs at least 6 characters.'
+    : f.password.length < 8
+    ? 'The password needs at least 8 characters.'
     : null;
 
   const submit = async () => {
@@ -131,7 +131,7 @@ function NewAccountDialog({ visible, onClose, onCreated, api }) {
             </Pressable>
           </View>
         </View>
-        <TextInput value={f.password} onChangeText={(v) => setF({ ...f, password: v })} secureTextEntry={!show} autoCapitalize="none" autoCorrect={false} placeholder="At least 6 characters" placeholderTextColor={colors.muted} style={styles.input} />
+        <TextInput value={f.password} onChangeText={(v) => setF({ ...f, password: v })} secureTextEntry={!show} autoCapitalize="none" autoCorrect={false} placeholder="At least 8 characters" placeholderTextColor={colors.muted} style={styles.input} />
 
         <Text style={styles.label}>Type</Text>
         <Segmented value={f.role} onChange={(role) => setF({ ...f, role })} options={[{ key: 'committee', label: 'Committee' }, { key: 'admin', label: 'Admin' }]} />
@@ -208,7 +208,7 @@ function PasswordDialog({ user, onClose, onSave }) {
         <Button title="Cancel" kind="ghost" onPress={onClose} style={{ flex: 1 }} />
         <Button
           title={busy ? 'Saving…' : 'Change password'}
-          disabled={busy || pw.length < 6}
+          disabled={busy || pw.length < 8}
           onPress={async () => {
             setBusy(true);
             const err = await onSave(user, pw);

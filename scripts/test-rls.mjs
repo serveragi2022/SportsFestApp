@@ -55,6 +55,8 @@ await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,mast
 await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,master_id) select 'chess',1,id from sf_master_teams limit 1`);
 await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,custom_name) values ('chess',2,'Walk-in')`, 'committee cannot name teams (own game)');
 await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,custom_name) values ('chess',2,'Walk-in')`);
+await denied('authenticated', ANA, `insert into sf_results (game_id,match_no,winner,score1,score2) values ('chess',1,1,99999,0)`, 'absurd score rejected');
+await denied('authenticated', ANA, `insert into sf_results (game_id,match_no,winner) values ('chess',1,999)`, 'absurd winner rejected');
 // master list: only admin can add, rename or delete
 await noRows('authenticated', ANA, `update sf_master_teams set name = 'Hacked' returning *`, 'committee cannot rename');
 await noRows('authenticated', ANA, `delete from sf_master_teams returning *`, 'committee cannot delete names');

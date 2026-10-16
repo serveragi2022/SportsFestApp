@@ -154,12 +154,12 @@ create policy sf_results_read      on public.sf_results      for select to anon,
 create policy sf_tiebreak_read     on public.sf_tiebreak     for select to anon, authenticated using (true);
 create policy sf_committee_read    on public.sf_committee    for select to anon, authenticated using (true);
 
--- team names list: committee and admins can ADD a name, only admins can rename / delete
+-- team names list: only admins can add, rename or delete
 create policy sf_master_teams_admin_insert on public.sf_master_teams for insert to authenticated with check (public.sf_is_admin());
 create policy sf_master_teams_admin_update on public.sf_master_teams for update to authenticated using (public.sf_is_admin()) with check (public.sf_is_admin());
 create policy sf_master_teams_admin_delete on public.sf_master_teams for delete to authenticated using (public.sf_is_admin());
 
--- team slot names, winners/points and tie-break champion: admins and the committee assigned to that game
+-- team slot names: admins only. Winners/points and the tie-break champion: admins and the committee assigned to that game
 create policy sf_rosters_admin_insert on public.sf_rosters for insert to authenticated with check (public.sf_is_admin());
 create policy sf_rosters_admin_update on public.sf_rosters for update to authenticated using (public.sf_is_admin()) with check (public.sf_is_admin());
 create policy sf_rosters_admin_delete on public.sf_rosters for delete to authenticated using (public.sf_is_admin());
@@ -179,6 +179,14 @@ create policy sf_committee_admin_delete on public.sf_committee for delete to aut
 
 grant select on public.sf_master_teams, public.sf_rosters, public.sf_results, public.sf_tiebreak, public.sf_committee to anon, authenticated;
 grant insert, update, delete on public.sf_master_teams, public.sf_rosters, public.sf_results, public.sf_tiebreak, public.sf_committee to authenticated;
+-- sanity limits (stops junk values even from a signed-in committee account)
+do $$
+begin
+  begin alter table public.sf_results add constraint sf_results_sane check (match_no between 1 and 100 and winner between 1 and 50 and (score1 is null or score1 between 0 and 999) and (score2 is null or score2 between 0 and 999)); exception when duplicate_object then null; end;
+  begin alter table public.sf_rosters add constraint sf_rosters_sane check (team_no between 1 and 50 and length(coalesce(custom_name, '')) <= 80); exception when duplicate_object then null; end;
+  begin alter table public.sf_master_teams add constraint sf_master_teams_sane check (length(name) between 1 and 80 and length(coalesce(department, '')) <= 40); exception when duplicate_object then null; end;
+end $$;
+
 grant select on public.sf_admins to authenticated;
 grant select, update on public.sf_staff to authenticated;
 grant select, insert, delete on public.sf_staff_games to authenticated;
