@@ -1,0 +1,249 @@
+// Supabase data access. Takes the client as a parameter so it can be tested with a fake client.
+//
+// Tables (see supabase/schema.sql):
+//   sf_master_teams (id, name, color)
+//   sf_rosters      (game_id, team_no, master_id, custom_name)
+//   sf_results      (game_id, match_no, winner, score1, score2)
+//   sf_tiebreak     (game_id, team_no)
+//   sf_committee    (game_id, role, name)
+//   sf_admins       (user_id)
+//   sf_staff        (user_id, username, email, full_name, role)   accounts made by an admin (sign in with username + password)
+//   sf_staff_games  (user_id, game_id)                      games a committee account may score
+// Creating / deleting logins and passwords go through the 'sf-admin' Edge Function.
+
+export const TABLES = {
+  masters: 'sf_master_teams',
+  rosters: 'sf_rosters',
+  results: 'sf_results',
+  tiebreak: 'sf_tiebreak',
+  committee: 'sf_committee',
+  admins: 'sf_admins',
+  staff: 'sf_staff',
+  staffGames: 'sf_staff_games',
+};
+
+import { sortTeams } from './data/departments.js';
+
+export const ADMIN_FUNCTION = 'sf-admin';
+
+export function rowsToState({ masters = [], rosters = [], results = [], tiebreak = [], committee = [] }) {
+  const state = { masterTeams: [], rosters: {}, results: {}, scores: {}, tiebreak: {}, committee: {} };
+  state.masterTeams = sortTeams(masters.map((r) => ({ id: r.id, name: r.name, color: r.color, department: r.department || '' })));
+  rosters.forEach((r) => {
+    if (!state.rosters[r.game_id]) state.rosters[r.game_id] = {};
+    state.rosters[r.game_id][r.team_no] = r.master_id ? { masterId: r.master_id } : { name: r.custom_name || '' };
+  });
+  results.forEach((r) => {
+    if (!state.results[r.game_id]) state.results[r.game_id] = {};
+    state.results[r.game_id][r.match_no] = r.winner;
+    if (r.score1 != null && r.score2 != null) {
+      if (!state.scores[r.game_id]) state.scores[r.game_id] = {};
+      state.scores[r.game_id][r.match_no] = [r.score1, r.score2];
+    }
+  });
+  tiebreak.forEach((r) => {
+    state.tiebreak[r.game_id] = r.team_no;
+  });
+  committee.forEach((r) => {
+    if (!state.committee[r.game_id]) state.committee[r.game_id] = {};
+    state.committee[r.game_id][r.role] = r.name;
+  });
+  return state;
+}
+
+export function makeRemote(client) {
+  const check = ({ error }) => {
+    if (error) throw new Error(error.message || String(error));
+  };
+  const db = (name) => client.from(name);
+
+  // Calls the sf-admin Edge Function and turns every failure into a readable message.
+  const callFunction = async (body) => {
+    const { data, error } = await client.functions.invoke(ADMIN_FUNCTION, { body });
+    if (error) {
+      const res = error.context && typeof error.context.text === 'function' ? error.context : null;
+      const status = res ? res.status : null;
+      let detail = '';
+      if (res) {
+        try {
+          const text = await res.text();
+          try {
+            const j = JSON.parse(text);
+            detail = j.error || j.message || j.msg || (typeof j === 'string' ? j : '');
+          } catch (e) {
+            detail = text;
+          }
+        } catch (e) {
+          // no body
+        }
+      }
+      let message = detail || error.message || 'Request failed';
+      if (status === 404) message = 'The account function "sf-admin" is not deployed on Supabase yet. (' + (detail || 'not found') + ')';
+      else if (status === 401 && /jwt/i.test(detail)) message = 'Supabase rejected the login token (' + detail + '). Redeploy sf-admin with: supabase functions deploy sf-admin --no-verify-jwt';
+      else if (status && !detail) message = 'Account function failed (HTTP ' + status + '). Check Supabase > Edge Functions > sf-admin > Logs.';
+      throw new Error(message);
+    }
+    if (data && data.error) throw new Error(data.error);
+    return data;
+  };
+
+  return {
+    async fetchAll() {
+      const [masters, rosters, results, tiebreak, committee] = await Promise.all([
+        db(TABLES.masters).select('*'),
+        db(TABLES.rosters).select('*'),
+        db(TABLES.results).select('*'),
+        db(TABLES.tiebreak).select('*'),
+        db(TABLES.committee).select('*'),
+      ]);
+      [masters, rosters, results, tiebreak, committee].forEach(check);
+      return rowsToState({ masters: masters.data, rosters: rosters.data, results: results.data, tiebreak: tiebreak.data, committee: committee.data });
+    },
+
+    async checkAdmin(userId) {
+      const res = await db(TABLES.admins).select('user_id').eq('user_id', userId).maybeSingle();
+      check(res);
+      return !!res.data;
+    },
+
+    // -> { role: 'admin' | 'committee' | 'guest', games: [] }
+    async getAccess(userId) {
+      const admin = await db(TABLES.admins).select('user_id').eq('user_id', userId).maybeSingle();
+      check(admin);
+      if (admin.data) return { role: 'admin', games: [] };
+      const staff = await db(TABLES.staff).select('user_id').eq('user_id', userId).maybeSingle();
+      check(staff);
+      if (!staff.data) return { role: 'guest', games: [] };
+      const games = await db(TABLES.staffGames).select('game_id').eq('user_id', userId);
+      check(games);
+      return { role: 'committee', games: (games.data || []).map((g) => g.game_id) };
+    },
+
+    // ----- accounts (admin only)
+    async listStaff() {
+      const [staff, games] = await Promise.all([db(TABLES.staff).select('*'), db(TABLES.staffGames).select('*')]);
+      check(staff);
+      check(games);
+      return (staff.data || [])
+        .map((u) => ({
+          userId: u.user_id,
+          username: u.username,
+          fullName: u.full_name,
+          role: u.role,
+          games: (games.data || []).filter((g) => g.user_id === u.user_id).map((g) => g.game_id),
+        }))
+        .sort((a, b) => a.fullName.localeCompare(b.fullName) || a.username.localeCompare(b.username));
+    },
+
+    async createStaff({ username, password, fullName, role, gameIds }) {
+      return callFunction({ action: 'create', username, password, fullName, role, gameIds });
+    },
+
+    async deleteStaff(userId) {
+      return callFunction({ action: 'delete', userId });
+    },
+
+    async setStaffPassword(userId, password) {
+      return callFunction({ action: 'password', userId, password });
+    },
+
+    // Replace the games of a committee account.
+    async setStaffGames(userId, gameIds) {
+      check(await db(TABLES.staffGames).delete().eq('user_id', userId));
+      if (gameIds.length) check(await db(TABLES.staffGames).insert(gameIds.map((game_id) => ({ user_id: userId, game_id }))));
+    },
+
+    // clearNos: later matches that depended on the old winner (their results are removed)
+    async setResult(gameId, matchNo, winner, scores, clearNos = []) {
+      if (clearNos.length) check(await db(TABLES.results).delete().eq('game_id', gameId).in('match_no', clearNos));
+      check(await db(TABLES.tiebreak).delete().eq('game_id', gameId));
+      check(
+        await db(TABLES.results).upsert({
+          game_id: gameId,
+          match_no: matchNo,
+          winner,
+          score1: scores ? scores[0] : null,
+          score2: scores ? scores[1] : null,
+        })
+      );
+    },
+
+    async clearResult(gameId, matchNos) {
+      check(await db(TABLES.results).delete().eq('game_id', gameId).in('match_no', matchNos));
+      check(await db(TABLES.tiebreak).delete().eq('game_id', gameId));
+    },
+
+    async setTiebreak(gameId, team) {
+      check(await db(TABLES.tiebreak).upsert({ game_id: gameId, team_no: team }));
+    },
+
+    async assignTeam(gameId, teamNo, value) {
+      if (!value) {
+        check(await db(TABLES.rosters).delete().eq('game_id', gameId).eq('team_no', teamNo));
+        return;
+      }
+      check(
+        await db(TABLES.rosters).upsert({
+          game_id: gameId,
+          team_no: teamNo,
+          master_id: value.masterId || null,
+          custom_name: value.masterId ? null : value.name || null,
+        })
+      );
+    },
+
+    async addMaster(team) {
+      check(await db(TABLES.masters).insert({ id: team.id, name: team.name, color: team.color, department: team.department || null }));
+    },
+
+    async updateMaster(team) {
+      check(await db(TABLES.masters).update({ name: team.name, color: team.color, department: team.department || null }).eq('id', team.id));
+    },
+
+    // Slots that used the name keep it as a custom label.
+    async deleteMaster(id, name) {
+      check(await db(TABLES.rosters).update({ master_id: null, custom_name: name }).eq('master_id', id));
+      check(await db(TABLES.masters).delete().eq('id', id));
+    },
+
+    async setCommittee(gameId, role, name) {
+      check(await db(TABLES.committee).upsert({ game_id: gameId, role, name }));
+    },
+
+    async resetGame(gameId) {
+      check(await db(TABLES.results).delete().eq('game_id', gameId));
+      check(await db(TABLES.tiebreak).delete().eq('game_id', gameId));
+    },
+
+    async resetAllResults() {
+      check(await db(TABLES.results).delete().neq('game_id', ''));
+      check(await db(TABLES.tiebreak).delete().neq('game_id', ''));
+    },
+
+    async resetEverything() {
+      check(await db(TABLES.results).delete().neq('game_id', ''));
+      check(await db(TABLES.tiebreak).delete().neq('game_id', ''));
+      check(await db(TABLES.committee).delete().neq('game_id', ''));
+      check(await db(TABLES.rosters).delete().neq('game_id', ''));
+      check(await db(TABLES.masters).delete().not('id', 'is', null));
+    },
+
+    // Calls onChange (debounced) whenever any Sports Fest table changes. Returns an unsubscribe function.
+    subscribe(onChange) {
+      let timer = null;
+      const fire = () => {
+        clearTimeout(timer);
+        timer = setTimeout(onChange, 250);
+      };
+      let channel = client.channel('sportsfest-live');
+      [TABLES.masters, TABLES.rosters, TABLES.results, TABLES.tiebreak, TABLES.committee].forEach((table) => {
+        channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, fire);
+      });
+      channel.subscribe();
+      return () => {
+        clearTimeout(timer);
+        client.removeChannel(channel);
+      };
+    },
+  };
+}

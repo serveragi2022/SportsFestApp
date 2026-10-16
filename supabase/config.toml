@@ -1,0 +1,4 @@
+# Used by the Supabase CLI. sf-admin checks the caller itself (token + sf_admins), so the gateway JWT check is off.
+# This avoids "Invalid JWT" errors on projects that use the newer JWT signing keys.
+[functions.sf-admin]
+verify_jwt = false
