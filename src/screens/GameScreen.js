@@ -199,7 +199,7 @@ function TeamsTab({ game }) {
     <View>
       <Text style={styles.note}>
         {isAdmin
-          ? 'Give each team slot its team name. The same name can be used by more than one team (for example Team 1 and Team 2 can both be “Production”).'
+          ? 'Give each team its team name. A name that is already used by another team of this game is not shown again.'
           : 'Team names of this game.'}
       </Text>
       {teams.map((n) => {

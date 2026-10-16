@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GAMES, GAME_BY_ID, TEAM_COLORS } from '../data/games';
 import { DEPARTMENTS } from '../data/departments';
+import { Alert } from '../dialog';
 import { useStore } from '../store';
 import { emailToUsername } from '../permissions';
 import GameIcon from '../components/GameIcon';

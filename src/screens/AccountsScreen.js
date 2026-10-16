@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GAMES, GAME_BY_ID } from '../data/games';
 import GameIcon from '../components/GameIcon';
+import { Alert } from '../dialog';
 import { useStore } from '../store';
 import { cleanUsername, USERNAME_RULE } from '../permissions';
 import { Button, Card, Chip, Segmented } from '../components/ui';

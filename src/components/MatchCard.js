@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '../dialog';
 import { useStore } from '../store';
 import { allMatches, downstream, eliminatedTeams, matchStatus, matchTeams, slotLabel } from '../engine';
 import TeamChip from './TeamChip';

@@ -15,11 +15,22 @@ export default function TeamNamePicker({ visible, gameId, teamNo, onClose }) {
     if (visible) setCustom('');
   }, [visible, teamNo]);
 
-  const options = state.masterTeams.map((t) => ({ key: t.id, label: t.name, color: t.color }));
+  // a name already given to another team of this game cannot be picked again
+  const roster = state.rosters[gameId] || {};
+  const usedIds = new Set();
+  const usedNames = new Set();
+  Object.entries(roster).forEach(([no, e]) => {
+    if (Number(no) === teamNo || !e) return;
+    if (e.masterId) usedIds.add(e.masterId);
+    if (e.name) usedNames.add(e.name.trim().toLowerCase());
+  });
+  const taken = (t) => usedIds.has(t.id) || usedNames.has(t.name.trim().toLowerCase());
+  const options = state.masterTeams.filter((t) => !taken(t)).map((t) => ({ key: t.id, label: t.name, color: t.color }));
 
   const saveCustom = () => {
     const name = custom.trim();
     if (!name) return;
+    if (usedNames.has(name.toLowerCase()) || state.masterTeams.some((t) => t.name.toLowerCase() === name.toLowerCase() && taken(t))) return;
     // a new name is added to the shared list of team names, then given to this team
     const match = state.masterTeams.find((t) => t.name.toLowerCase() === name.toLowerCase());
     const team = match || addMaster(name, TEAM_COLORS[state.masterTeams.length % TEAM_COLORS.length]);
