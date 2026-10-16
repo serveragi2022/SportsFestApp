@@ -9,7 +9,7 @@ const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 const STATUS = {
   champion: { label: 'Champion', tone: 'success' },
-  out: { label: 'lose', tone: 'danger' },
+  out: { label: 'Lose', tone: 'danger' },
   playing: { label: 'In play', tone: 'warn' },
   idle: { label: 'Not started', tone: 'neutral' },
 };

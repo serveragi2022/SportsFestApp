@@ -77,7 +77,7 @@ export function computeStandings(state) {
           g.champions += 1;
           wonThis = true;
         } else if (out.has(slot.team) || champion != null) {
-          slot.status = 'lose';
+          slot.status = 'out';
         }
       });
       if (wonThis) g.gamesWon += 1;
