@@ -258,7 +258,7 @@ export function StoreProvider({ children }) {
         run({ type: 'CLEAR_RESULT', gameId, matchNo }, (r) => r.clearResult(gameId, gone), 'admin');
       },
       setTiebreak: (gameId, team) => run({ type: 'SET_TIEBREAK', gameId, team }, (r) => r.setTiebreak(gameId, team), { game: gameId }),
-      assignTeam: (gameId, teamNo, value) => run({ type: 'ASSIGN_TEAM', gameId, teamNo, value }, (r) => r.assignTeam(gameId, teamNo, value), { game: gameId }),
+      assignTeam: (gameId, teamNo, value) => run({ type: 'ASSIGN_TEAM', gameId, teamNo, value }, (r) => r.assignTeam(gameId, teamNo, value), 'admin'),
       addMaster: (name, color, department = '') => {
         const team = { id: uuid(), name: name.trim(), color, department: (department || '').trim() };
         run({ type: 'ADD_MASTER', team }, (r) => r.addMaster(team), 'admin');

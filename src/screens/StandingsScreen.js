@@ -1,15 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GameIcon, { Trophy } from '../components/GameIcon';
 import { useStore } from '../store';
 import { computeStandings, groupByDepartment, leadingTeams, rankByPercent } from '../standings';
 import { Card, Chip, PressableScale, Segmented } from '../components/ui';
 import { colors, radius, shadow } from '../theme';
 
-const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const MEDAL_COLOR = { 1: '#D4A017', 2: '#94A3B8', 3: '#B7791F' };
 
 const STATUS = {
   champion: { label: 'Champion', tone: 'success' },
-  out: { label: 'Lose', tone: 'danger' },
+  out: { label: 'Out', tone: 'danger' },
   playing: { label: 'In play', tone: 'warn' },
   idle: { label: 'Not started', tone: 'neutral' },
 };
@@ -30,8 +32,8 @@ function TeamRow({ r, rank, showDept, open, onToggle }) {
       <View style={styles.row}>
         <View style={styles.rowTop}>
           {rank ? (
-            <View style={[styles.rankDot, { backgroundColor: r.color }]}>
-              <Text style={styles.rankDotText}>{MEDAL[rank] || rank}</Text>
+            <View style={[styles.rankDot, { backgroundColor: MEDAL_COLOR[rank] || r.color }]}>
+              <Text style={styles.rankDotText}>{rank}</Text>
             </View>
           ) : (
             <View style={[styles.colorDot, { backgroundColor: r.color }]} />
@@ -56,9 +58,10 @@ function TeamRow({ r, rank, showDept, open, onToggle }) {
             {r.games.length === 0 ? <Text style={styles.slotWl}>Not in any game yet.</Text> : null}
             {r.games.map(({ game, slots }) => (
               <View key={game.id} style={styles.gameBlock}>
-                <Text style={styles.gameTitle}>
-                  {game.icon}  {game.name}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <GameIcon id={game.id} size={18} />
+                  <Text style={[styles.gameTitle, { marginBottom: 0 }]}>{game.name}</Text>
+                </View>
                 {slots.map((s) => (
                   <View key={s.team} style={styles.slotRow}>
                     <Text style={styles.slotName}>Team {s.team}</Text>
@@ -104,9 +107,12 @@ export default function StandingsScreen() {
         <View style={styles.leader}>
           <Text style={styles.leaderLabel}>{leaders.length > 1 ? 'Leading teams (tie)' : 'Leading team'}</Text>
           {leaders.map((t) => (
-            <Text key={t.key} style={styles.leaderName}>
-              🏆 {t.name} <Text style={{ fontWeight: '700', fontSize: 14 }}>· {t.department || 'No department'} · {t.percent}%</Text>
-            </Text>
+            <View key={t.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <Trophy size={22} color="#FCD34D" />
+              <Text style={styles.leaderName}>
+              {t.name} <Text style={{ fontWeight: '700', fontSize: 14 }}>· {t.department || 'No department'} · {t.percent}%</Text>
+              </Text>
+            </View>
           ))}
         </View>
       ) : null}
@@ -114,7 +120,7 @@ export default function StandingsScreen() {
 
       {list.length === 0 ? (
         <Card style={{ alignItems: 'center', paddingVertical: 28 }}>
-          <Text style={{ fontSize: 34 }}>📊</Text>
+          <MaterialCommunityIcons name="chart-bar" size={40} color={colors.muted} />
           <Text style={styles.emptyTitle}>No team names yet</Text>
           <Text style={styles.emptyText}>Standings appear once the admin adds team names (Admin, then Team names).</Text>
         </Card>

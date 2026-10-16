@@ -105,13 +105,13 @@ export function robinStandings(game, roundIndex, results, scores = {}) {
   Object.values(rows).forEach((r) => {
     r.diff = r.pf - r.pa;
   });
-  const list = Object.values(rows).sort((a, b) => b.wins - a.wins || (round.scoring ? b.diff - a.diff : 0) || a.team - b.team);
+  const list = Object.values(rows).sort((a, b) => b.wins - a.wins || (round.scoring ? b.pf - a.pf : 0) || a.team - b.team);
   return { rows: list, complete: done === round.matches.length, done, total: round.matches.length, scoring: !!round.scoring };
 }
 
 // Champion of a game.
 // Returns { champion: teamNo|null, tied: teamNo[]|null, reason: 'wins'|'points'|null }
-//   Round robin: most wins; if level and the round is scored, the point difference (+/-) decides;
+//   Round robin: most wins; if level and the round is scored, the TOTAL POINTS SCORED in the round decide;
 //   if still level the admin picks the champion (tiebreak = the picked team number).
 //   `tied` lists the teams that are still level; `reason` says on what ('wins' or 'points').
 export function getChampion(game, results, tiebreak, scores = {}) {
@@ -124,8 +124,8 @@ export function getChampion(game, results, tiebreak, scores = {}) {
     let leaders = st.rows.filter((r) => r.wins === top);
     let reason = 'wins';
     if (leaders.length > 1 && st.scoring) {
-      const bestDiff = Math.max(...leaders.map((r) => r.diff));
-      leaders = leaders.filter((r) => r.diff === bestDiff);
+      const bestPts = Math.max(...leaders.map((r) => r.pf));
+      leaders = leaders.filter((r) => r.pf === bestPts);
       reason = 'points';
     }
     if (leaders.length === 1) return { champion: leaders[0].team, tied: null, reason: null };

@@ -6,6 +6,7 @@ import { eliminatedTeams, getChampion, gameProgress, matchStatus, matchTeams, ro
 import MatchCard from '../components/MatchCard';
 import TeamChip from '../components/TeamChip';
 import TeamNamePicker from '../components/TeamNamePicker';
+import { Trophy } from '../components/GameIcon';
 import { Button, Card, Chip, PressableScale, ProgressBar, Segmented } from '../components/ui';
 import { colors, radius, shadow } from '../theme';
 
@@ -18,7 +19,7 @@ export default function GameScreen({ route, navigation }) {
   const scores = state.scores[gameId] || {};
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: `${game.icon}  ${game.name}` });
+    navigation.setOptions({ title: game.name });
   }, [navigation, game]);
 
   const progress = gameProgress(game, results);
@@ -65,7 +66,7 @@ function ChampionBanner({ game, results, scores }) {
   if (champion != null) {
     return (
       <View style={styles.champ}>
-        <Text style={{ fontSize: 34 }}>🏆</Text>
+        <Trophy size={38} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.champLabel}>CHAMPION</Text>
           <TeamChip gameId={game.id} teamNo={champion} bold />
@@ -79,7 +80,7 @@ function ChampionBanner({ game, results, scores }) {
         <Text style={{ fontWeight: '800', fontSize: 16, color: colors.text }}>Tie-breaker needed</Text>
         <Text style={{ color: colors.muted, marginTop: 4, marginBottom: 10 }}>
           {reason === 'points'
-            ? 'These teams have the same wins and the same point difference.'
+            ? 'These teams have the same wins and the same total points.'
             : 'These teams have the same number of wins.'}{' '}
           {canEdit ? 'Choose the champion.' : 'Waiting for the committee to choose the champion.'}
         </Text>
@@ -107,7 +108,7 @@ function WinsTable({ game, roundIndex, results, scores }) {
         <Text style={[styles.th, { flex: 1, textAlign: 'left' }]}>Team</Text>
         <Text style={styles.th}>Wins</Text>
         <Text style={styles.th}>Losses</Text>
-        {st.scoring ? <Text style={styles.th}>Pts +/−</Text> : null}
+        {st.scoring ? <Text style={styles.th}>Total pts</Text> : null}
       </View>
       {st.rows.length === 0 ? <Text style={{ color: colors.muted, paddingVertical: 8 }}>Teams appear when the semi-finals are decided.</Text> : null}
       {st.rows.map((r) => (
@@ -117,10 +118,10 @@ function WinsTable({ game, roundIndex, results, scores }) {
           </View>
           <Text style={[styles.td, { fontWeight: '800' }]}>{r.wins}</Text>
           <Text style={styles.td}>{r.losses}</Text>
-          {st.scoring ? <Text style={styles.td}>{r.diff > 0 ? `+${r.diff}` : r.diff}</Text> : null}
+          {st.scoring ? <Text style={styles.td}>{r.pf}</Text> : null}
         </View>
       ))}
-      <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8 }}>Most wins is the Champion.{st.scoring ? ' If tied, the point difference (+/−) decides; if still tied, the admin picks.' : ''} Matches done: {st.done}/{st.total}</Text>
+      <Text style={{ color: colors.muted, fontSize: 12, marginTop: 8 }}>Most wins is the Champion.{st.scoring ? ' If tied, the total points scored decide; if still tied, the admin picks.' : ''} Matches done: {st.done}/{st.total}</Text>
       {needsTiebreak ? <Text style={{ color: colors.warn, fontWeight: '700', fontSize: 12, marginTop: 6 }}>Tie. The champion is chosen in the Tie-breaker box at the top of this screen.</Text> : null}
     </Card>
   );
@@ -191,8 +192,7 @@ function BracketTab({ game, results, scores }) {
 }
 
 function TeamsTab({ game }) {
-  const { getTeam, canEditGame } = useStore();
-  const isAdmin = canEditGame(game.id); // admin, or committee assigned to this game
+  const { getTeam, isAdmin } = useStore(); // only the admin gives names to the teams
   const [editing, setEditing] = useState(null);
   const teams = useMemo(() => Array.from({ length: game.teams }, (_, i) => i + 1), [game]);
   return (

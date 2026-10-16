@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { GAMES } from '../data/games';
+import GameIcon, { Trophy } from '../components/GameIcon';
 import { useStore } from '../store';
 import { allMatches, gameProgress, getChampion, matchStatus, matchTeams } from '../engine';
 import TeamChip from '../components/TeamChip';
@@ -31,7 +32,7 @@ export default function HomeScreen({ navigation }) {
   const header = (
     <View>
       <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Sports Fest</Text>
+        <Text style={styles.heroTitle}>AGI Sports Fest 2026</Text>
         <Text style={styles.heroSub}>
           {totalDone} of {total} matches done · {decided} of {GAMES.length} champions
         </Text>
@@ -47,9 +48,12 @@ export default function HomeScreen({ navigation }) {
             <PressableScale key={`${game.id}-${match.no}`} haptic={false} scaleTo={0.98} onPress={() => navigation.navigate('Game', { gameId: game.id })}>
               <Card style={{ marginBottom: 8, paddingVertical: 12 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.nextTitle}>
-                    {game.icon} {game.short || game.name} · Game {match.no}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+                    <GameIcon id={game.id} size={20} />
+                    <Text style={styles.nextTitle}>
+                      {game.short || game.name} · Game {match.no}
+                    </Text>
+                  </View>
                   {match.time ? <Chip label={match.time} tone="info" /> : match.venue || game.venue ? <Chip label={match.venue || game.venue} /> : null}
                 </View>
                 <View style={{ marginTop: 8, gap: 6 }}>
@@ -83,7 +87,7 @@ export default function HomeScreen({ navigation }) {
         return (
           <PressableScale style={{ flex: 1, marginBottom: 12 }} innerStyle={{ flex: 1 }} haptic={false} scaleTo={0.96} onPress={() => navigation.navigate('Game', { gameId: g.id })}>
             <View style={styles.gameCard}>
-              <Text style={{ fontSize: 30 }}>{g.icon}</Text>
+              <GameIcon id={g.id} size={32} />
               <Text style={styles.gameName} numberOfLines={2}>
                 {g.name}
               </Text>
@@ -96,7 +100,10 @@ export default function HomeScreen({ navigation }) {
               </Text>
               {champion != null ? (
                 <View style={{ marginTop: 6 }}>
-                  <Text style={styles.champLine}>🏆 Team {champion}{getTeam(g.id, champion).name ? ` · ${getTeam(g.id, champion).name}` : ''}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <Trophy size={15} />
+                    <Text style={styles.champLine}>Team {champion}{getTeam(g.id, champion).name ? ` · ${getTeam(g.id, champion).name}` : ''}</Text>
+                  </View>
                 </View>
               ) : tied ? (
                 <Chip label="Tie-breaker needed" tone="warn" style={{ marginTop: 6 }} />

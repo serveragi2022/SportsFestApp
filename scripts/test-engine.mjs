@@ -50,25 +50,28 @@ const st = robinStandings(darts, 2, dres);
 assert.equal(st.rows.length, 3); assert.equal(st.complete, false);
 console.log('ALL ENGINE TESTS PASSED');
 
-// ---------- points + tie-break (Pickleball WS) ----------
+// ---------- points + tie-break (Pickleball WS): total points scored ----------
 {
   const pb2 = GAMES.find((g) => g.id === 'pickleball-ws');
-  // T1 beat T2 11-9, T2 beat T3 11-2, T3 beat T1 11-10  -> 1-1-1 on wins
+  // 1-1-1 on wins. M1 = T1 v T2 (11-9), M2 = T2 v T3 (11-2), M3 = T1 v T3 (10-11, T3 wins)
   const res = { 1: 1, 2: 2, 3: 3 };
-  const sc = { 1: [11, 9], 2: [11, 2], 3: [10, 11] }; // match 3 = T1 vs T3 -> slots [T1,T3]
-  // diff: T1 = +2 (11-9) and -1 (10-11) = +1 ; T2 = -2 +9 = +7 ; T3 = -9 +1 = -8
+  const sc = { 1: [11, 9], 2: [11, 2], 3: [10, 11] };
+  // total points scored: T1 = 11+10 = 21 ; T2 = 9+11 = 20 ; T3 = 2+11 = 13  -> T1 is champion
   let c = getChampion(pb2, res, undefined, sc);
-  assert.equal(c.champion, 2, 'point difference decides');
-  // same points everywhere -> admin has to pick
-  const flat = { 1: [11, 9], 2: [11, 9], 3: [9, 11] };
-  // T1: +2, T2: -2 +2 = 0 ... build a perfect cycle with equal diffs
-  const cyc = { 1: [11, 9], 2: [11, 9], 3: [9, 11] }; // T1>T2 (+2), T2>T3 (+2), T3>T1 (+2) => every team: +2 -2 = 0
-  c = getChampion(pb2, { 1: 1, 2: 2, 3: 3 }, undefined, cyc);
+  assert.equal(c.champion, 1, 'total points scored decides');
+  const st0 = robinStandings(pb2, 0, res, sc);
+  assert.deepEqual(st0.rows.map((r) => [r.team, r.pf]), [[1, 21], [2, 20], [3, 13]]);
+  // same total points -> admin has to pick
+  const two = { 1: [5, 7], 2: [3, 4], 3: [5, 3] };
+  c = getChampion(pb2, { 1: 2, 2: 2, 3: 1 }, undefined, two); // wins: T1 1 (M3), T2 2 -> T2 alone on top
+  assert.equal(c.champion, 2);
+  // level wins AND level points: a=5,b=5,c=5,d=5,e=5,f=5 -> everyone 10
+  const all = { 1: [5, 5], 2: [5, 5], 3: [5, 5] };
+  c = getChampion(pb2, { 1: 1, 2: 2, 3: 3 }, undefined, all);
   assert.equal(c.champion, null); assert.equal(c.reason, 'points'); assert.deepEqual(c.tied.sort(), [1, 2, 3]);
-  c = getChampion(pb2, { 1: 1, 2: 2, 3: 3 }, 3, cyc);
+  c = getChampion(pb2, { 1: 1, 2: 2, 3: 3 }, 3, all);
   assert.equal(c.champion, 3);
-  const st = robinStandings(pb2, 0, { 1: 1, 2: 2, 3: 3 }, cyc);
-  assert.equal(st.rows[0].pf + st.rows[0].pa, 40);
+  console.log('POINTS TIE-BREAK TESTS PASSED');
 }
 // Darts: only the championship round is scored
 {

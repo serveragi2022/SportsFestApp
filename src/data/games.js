@@ -4,7 +4,7 @@
 // Round types: 'elim'  -> single elimination (loser is eliminated)
 //              'robin' -> round robin (champion = most wins)
 // scoring: true -> the points of BOTH teams are encoded (winner = higher points).
-//          For round robin, point difference breaks a tie on wins; still equal -> admin picks.
+//          For round robin, total points scored breaks a tie on wins; still equal -> admin picks.
 
 const T = (n) => ({ t: n });
 const W = (g) => ({ w: g });
@@ -26,7 +26,6 @@ export const GAMES = [
   {
     id: 'basketball',
     name: 'Basketball',
-    icon: '🏀',
     teams: 8,
     rounds: [
       { name: 'Round 1: Qualifying Round', type: 'elim', matches: [bb(1, [T(1), T(5)]), bb(2, [T(2), T(6)]), bb(3, [T(3), T(7)]), bb(4, [T(4), T(8)])] },
@@ -46,7 +45,6 @@ export const GAMES = [
     id: 'badminton-ws',
     name: "Badminton Women's Singles",
     short: 'Badminton (WS)',
-    icon: '🏸',
     venue: 'Court 1',
     teams: 8,
     rounds: [
@@ -64,7 +62,6 @@ export const GAMES = [
     id: 'badminton-ms',
     name: "Badminton Men's Singles",
     short: 'Badminton (MS)',
-    icon: '🏸',
     venue: 'Court 1',
     teams: 4,
     rounds: [
@@ -81,7 +78,6 @@ export const GAMES = [
     id: 'badminton-wd',
     name: "Badminton Women's Doubles",
     short: 'Badminton (WD)',
-    icon: '🏸',
     venue: 'Court 2',
     teams: 5,
     rounds: [
@@ -99,7 +95,6 @@ export const GAMES = [
     id: 'badminton-md',
     name: "Badminton Men's Doubles",
     short: 'Badminton (MD)',
-    icon: '🏸',
     venue: 'Court 2',
     teams: 5,
     rounds: [
@@ -117,7 +112,6 @@ export const GAMES = [
     id: 'pickleball-ws',
     name: "Pickleball Women's Singles",
     short: 'Pickleball (WS)',
-    icon: '🏓',
     venue: 'Court 1',
     teams: 3,
     rounds: [
@@ -134,7 +128,6 @@ export const GAMES = [
     id: 'pickleball-md',
     name: "Pickleball Men's Doubles",
     short: 'Pickleball (MD)',
-    icon: '🏓',
     venue: 'Court 1',
     teams: 2,
     rounds: [
@@ -150,7 +143,6 @@ export const GAMES = [
   {
     id: 'chess',
     name: 'Chess',
-    icon: '♟️',
     teams: 9,
     rounds: [
       { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(9)], { venue: 'Board 1' })] },
@@ -175,7 +167,6 @@ export const GAMES = [
   {
     id: 'darts',
     name: 'Darts',
-    icon: '🎯',
     teams: 12,
     rounds: [
       {
@@ -194,7 +185,6 @@ export const GAMES = [
   {
     id: 'ml',
     name: 'Mobile Legends',
-    icon: '🎮',
     teams: 5,
     rounds: [
       { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(5)])] },
@@ -211,7 +201,6 @@ export const GAMES = [
   {
     id: 'sungka',
     name: 'Sungka',
-    icon: '🐚',
     teams: 13,
     rounds: [
       { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(13)], { venue: 'Board S1' })] },
@@ -242,7 +231,6 @@ export const GAMES = [
   {
     id: 'scrabble',
     name: 'Scrabble',
-    icon: '🔤',
     teams: 11,
     rounds: [
       {

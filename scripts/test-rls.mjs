@@ -51,9 +51,10 @@ await ok('authenticated', ANA, `insert into sf_tiebreak (game_id,team_no) values
 await denied('authenticated', ANA, `insert into sf_tiebreak (game_id,team_no) values ('basketball',3)`, 'tiebreak other game');
 await denied('authenticated', ANA, `insert into sf_master_teams (id,name,color) values (gen_random_uuid(),'Ambassador','#111')`, 'committee cannot add team names');
 await ok('authenticated', ADMIN, `insert into sf_master_teams (id,name,color) values (gen_random_uuid(),'Ambassador','#111')`);
-await ok('authenticated', ANA, `insert into sf_rosters (game_id,team_no,master_id) select 'chess',1,id from sf_master_teams limit 1`);
-await ok('authenticated', ANA, `insert into sf_rosters (game_id,team_no,custom_name) values ('chess',2,'Walk-in')`);
-await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,custom_name) values ('basketball',1,'X')`, 'roster other game');
+await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,master_id) select 'chess',1,id from sf_master_teams limit 1`, 'committee cannot name teams');
+await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,master_id) select 'chess',1,id from sf_master_teams limit 1`);
+await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,custom_name) values ('chess',2,'Walk-in')`, 'committee cannot name teams (own game)');
+await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,custom_name) values ('chess',2,'Walk-in')`);
 // master list: only admin can add, rename or delete
 await noRows('authenticated', ANA, `update sf_master_teams set name = 'Hacked' returning *`, 'committee cannot rename');
 await noRows('authenticated', ANA, `delete from sf_master_teams returning *`, 'committee cannot delete names');

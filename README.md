@@ -1,4 +1,4 @@
-# Sports Fest Scorekeeper (Expo + Supabase)
+# AGI Sports Fest 2026 (Expo + Supabase)
 
 Scorekeeping app for the Sports Fest. 12 games from `Games Bracket.xlsx`.
 
@@ -14,7 +14,7 @@ Without a `.env` the app runs in **local mode** (everything on the device, you a
 | Who | How | Can do |
 |---|---|---|
 | **Guest** | just open the app (no login) | see brackets, matches, winners, standings (live updates) |
-| **Committee** | Admin tab > username + password (made by the admin) | in their assigned games only: add team names, choose winners, enter points |
+| **Committee** | Admin tab > username + password (made by the admin) | in their assigned games only: choose winners and enter points (team names are set by the admin) |
 | **Admin** | Admin tab > sign in | everything: all games, resets, master team list, **create/delete accounts**, assign games |
 
 Committee accounts use a **username + password set by the admin** (no email needed).
@@ -66,7 +66,7 @@ Test locally: `npm run build:web && npx serve dist`.
 - **Points are encoded** (both teams) for: **Pickleball** (all matches), and the **championship round of Darts and Sungka**.
   Higher points wins the match. Equal points: the admin chooses the winner.
 - **Round robin championships** (Pickleball WS, Darts, Sungka): most wins = Champion.
-  Tie on wins -> **point difference** (points scored minus points conceded) decides.
+  Tie on wins -> the **total points scored** in the round robin decides.
   Still tied -> the admin picks the champion (Tie-breaker box).
 - Match buttons are in the **center** of each match card, between the two teams.
 

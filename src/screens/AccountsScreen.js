@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GAMES, GAME_BY_ID } from '../data/games';
+import GameIcon from '../components/GameIcon';
 import { useStore } from '../store';
 import { cleanUsername, USERNAME_RULE } from '../permissions';
 import { Button, Card, Chip, Segmented } from '../components/ui';
@@ -9,7 +10,7 @@ import { colors, radius, shadow } from '../theme';
 
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const makePassword = () => Array.from({ length: 8 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
-const gameLabel = (id) => (GAME_BY_ID[id] ? `${GAME_BY_ID[id].icon} ${GAME_BY_ID[id].short || GAME_BY_ID[id].name}` : id);
+const gameLabel = (id) => (GAME_BY_ID[id] ? GAME_BY_ID[id].short || GAME_BY_ID[id].name : id);
 
 // Bottom/center dialog shell
 function Dialog({ visible, onClose, children }) {
@@ -40,9 +41,8 @@ function GameChecklist({ value, onChange }) {
         return (
           <Pressable key={g.id} onPress={() => toggle(g.id)} style={[styles.checkRow, on && styles.checkRowOn]}>
             <Ionicons name={on ? 'checkbox' : 'square-outline'} size={22} color={on ? colors.primary : colors.muted} />
-            <Text style={styles.checkText}>
-              {g.icon}  {g.name}
-            </Text>
+            <GameIcon id={g.id} size={20} color={colors.muted} />
+            <Text style={styles.checkText}>{g.name}</Text>
           </Pressable>
         );
       })}
@@ -93,7 +93,7 @@ function NewAccountDialog({ visible, onClose, onCreated, api }) {
   if (done) {
     return (
       <Dialog visible={visible} onClose={onClose}>
-        <Text style={styles.title}>Account created ✅</Text>
+        <Text style={styles.title}>Account created</Text>
         <Text style={styles.note}>Give these login details to the person. The password is not shown again.</Text>
         <View style={styles.credBox}>
           <Text style={styles.credLabel}>Username</Text>
@@ -102,7 +102,7 @@ function NewAccountDialog({ visible, onClose, onCreated, api }) {
           <Text style={styles.credValue} selectable>{done.password}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-          <Button title="Share" icon="share-social" kind="accent" style={{ flex: 1 }} onPress={() => Share.share({ message: `Sports Fest login\nUsername: ${done.username}\nPassword: ${done.password}` }).catch(() => {})} />
+          <Button title="Share" icon="share-social" kind="accent" style={{ flex: 1 }} onPress={() => Share.share({ message: `AGI Sports Fest 2026 login\nUsername: ${done.username}\nPassword: ${done.password}` }).catch(() => {})} />
           <Button title="Done" style={{ flex: 1 }} onPress={onClose} />
         </View>
       </Dialog>
@@ -114,10 +114,10 @@ function NewAccountDialog({ visible, onClose, onCreated, api }) {
       <Text style={styles.title}>New account</Text>
       <ScrollView style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.label}>Name of the person</Text>
-        <TextInput value={f.fullName} onChangeText={(v) => setF({ ...f, fullName: v })} placeholder="e.g. Nel Marasigan" placeholderTextColor={colors.muted} style={styles.input} />
+        <TextInput value={f.fullName} onChangeText={(v) => setF({ ...f, fullName: v })} placeholder="e.g. Ana Cruz" placeholderTextColor={colors.muted} style={styles.input} />
 
         <Text style={styles.label}>Username</Text>
-        <TextInput value={f.username} onChangeText={(v) => setF({ ...f, username: v.replace(/\s/g, '') })} placeholder="e.g. nel.marasigan" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={styles.input} />
+        <TextInput value={f.username} onChangeText={(v) => setF({ ...f, username: v.replace(/\s/g, '') })} placeholder="e.g. ana.cruz" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={styles.input} />
 
         <View style={styles.checkHead}>
           <Text style={styles.label}>Password</Text>

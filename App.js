@@ -47,7 +47,7 @@ function Tabs() {
         tabBarIcon: ({ focused, color, size }) => <Ionicons name={icons[route.name][focused ? 0 : 1]} size={size} color={color} />,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Sports Fest', tabBarLabel: 'Home' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'AGI Sports Fest 2026', tabBarLabel: 'Home' }} />
       <Tab.Screen name="Schedule" component={ScheduleScreen} />
       <Tab.Screen name="Winners" component={WinnersScreen} />
       <Tab.Screen name="Standings" component={StandingsScreen} />

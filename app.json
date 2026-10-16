@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Sports Fest",
+    "name": "AGI Sports Fest 2026",
     "slug": "SportsFestApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1E40AF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -21,8 +21,8 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single",
-      "name": "Sports Fest",
-      "shortName": "Sports Fest",
+      "name": "AGI Sports Fest 2026",
+      "shortName": "AGI Sports Fest",
       "themeColor": "#1E40AF",
       "backgroundColor": "#F4F6FB",
       "display": "standalone"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { GAMES } from '../data/games';
+import GameIcon, { Trophy } from '../components/GameIcon';
 import { useStore } from '../store';
 import { getChampion } from '../engine';
 import TeamChip from '../components/TeamChip';
@@ -17,8 +18,8 @@ export default function WinnersScreen({ navigation }) {
   const decided = rows.filter((r) => r.champion != null).length;
 
   const share = () => {
-    const lines = rows.map((r) => `${r.game.icon} ${r.game.name}: ${r.champion != null ? getTeam(r.game.id, r.champion).label : 'TBD'}`);
-    Share.share({ message: `🏆 Sports Fest Champions\n\n${lines.join('\n')}` }).catch(() => {});
+    const lines = rows.map((r) => `${r.game.name}: ${r.champion != null ? getTeam(r.game.id, r.champion).label : 'TBD'}`);
+    Share.share({ message: `AGI Sports Fest 2026 - Champions\n\n${lines.join('\n')}` }).catch(() => {});
   };
 
   return (
@@ -34,9 +35,10 @@ export default function WinnersScreen({ navigation }) {
         <Card key={game.id} style={{ marginBottom: 10 }}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.game}>
-                {game.icon}  {game.name}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <GameIcon id={game.id} />
+                <Text style={styles.game}>{game.name}</Text>
+              </View>
               <View style={{ marginTop: 10 }}>
                 {champion != null ? (
                   <TeamChip gameId={game.id} teamNo={champion} bold />
@@ -47,7 +49,7 @@ export default function WinnersScreen({ navigation }) {
                 )}
               </View>
             </View>
-            <Text style={{ fontSize: 36, opacity: champion != null ? 1 : 0.2 }}>🏆</Text>
+            <Trophy size={40} color={champion != null ? '#D97706' : '#CBD5E1'} />
           </View>
         </Card>
       ))}

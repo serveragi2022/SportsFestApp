@@ -41,7 +41,7 @@ export default function ScheduleScreen({ navigation }) {
           }
           return true;
         });
-      if (data.length) out.push({ title: `${g.icon}  ${g.name}`, game: g, data });
+      if (data.length) out.push({ title: g.name, game: g, data });
     });
     return out;
   }, [state, status, gameFilter, nameFilter, getTeam]);
@@ -96,7 +96,7 @@ export default function ScheduleScreen({ navigation }) {
       <PickerModal
         visible={picker === 'game'}
         title="Filter by game"
-        options={GAMES.map((g) => ({ key: g.id, label: `${g.icon}  ${g.name}` }))}
+        options={GAMES.map((g) => ({ key: g.id, label: g.name }))}
         onClose={() => setPicker(null)}
         onSelect={(o) => {
           setGameFilter(o.key);

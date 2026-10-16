@@ -4,12 +4,13 @@ import { GAMES, GAME_BY_ID, TEAM_COLORS } from '../data/games';
 import { DEPARTMENTS } from '../data/departments';
 import { useStore } from '../store';
 import { emailToUsername } from '../permissions';
+import GameIcon from '../components/GameIcon';
 import { Button, Card, Chip, FilterChip, PickerModal, SectionTitle, TextPromptModal } from '../components/ui';
 import { colors, radius } from '../theme';
 
 function StatusCard() {
   const { mode, access, session, syncError, refresh, signOut } = useStore();
-  const title = access.role === 'admin' ? '🛠  Admin' : access.role === 'committee' ? '📋  Committee' : '👀  Guest (view only)';
+  const title = access.role === 'admin' ? 'Admin' : access.role === 'committee' ? 'Committee' : 'Guest (view only)';
   return (
     <Card style={{ marginTop: 6 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -93,19 +94,19 @@ function CommitteeTools({ navigation }) {
       {games.length === 0 ? <Text style={styles.empty}>No games assigned to you yet. Ask the admin.</Text> : null}
       {games.map((g) => (
         <Card key={g.id} style={styles.gameRow}>
-          <Text style={styles.gameName}>
-            {g.icon}  {g.name}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
+            <GameIcon id={g.id} />
+            <Text style={styles.gameName}>{g.name}</Text>
+          </View>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Button title="Matches" icon="trophy" small onPress={() => navigation.navigate('Game', { gameId: g.id, tab: 'matches' })} />
-            <Button title="Team names" icon="people" small kind="ghost" onPress={() => navigation.navigate('Game', { gameId: g.id, tab: 'teams' })} />
           </View>
         </Card>
       ))}
-      <Text style={styles.note}>In your games you can choose the winner, enter points, and pick a team name for each team.</Text>
+      <Text style={styles.note}>In your games you can choose the winner and enter points. The admin sets the team names.</Text>
 
       <SectionTitle>Team names</SectionTitle>
-      <Text style={styles.note}>These are the team names set up by the admin. Only the admin can add, rename or delete names.</Text>
+      <Text style={styles.note}>Team names are set up by the admin.</Text>
       {state.masterTeams.length === 0 ? <Text style={styles.empty}>No team names yet. Ask the admin.</Text> : null}
       {state.masterTeams.map((t) => (
         <Card key={t.id} style={styles.masterRow}>
@@ -169,11 +170,11 @@ function AdminTools({ navigation }) {
       <SectionTitle>Per game setup</SectionTitle>
       {GAMES.map((g) => (
         <Card key={g.id} style={styles.gameRow}>
-          <Text style={styles.gameName}>
-            {g.icon}  {g.name}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 }}>
+            <GameIcon id={g.id} />
+            <Text style={styles.gameName}>{g.name}</Text>
+          </View>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Button title="Team names" icon="people" small kind="ghost" onPress={() => navigation.navigate('Game', { gameId: g.id, tab: 'teams' })} />
             <Button title="Committee" icon="clipboard" small kind="ghost" onPress={() => navigation.navigate('Game', { gameId: g.id, tab: 'committee' })} />
           </View>
         </Card>
@@ -226,7 +227,7 @@ function AdminTools({ navigation }) {
       <PickerModal
         visible={resetPicker}
         title="Reset which game?"
-        options={GAMES.map((g) => ({ key: g.id, label: `${g.icon}  ${g.name}` }))}
+        options={GAMES.map((g) => ({ key: g.id, label: g.name }))}
         onClose={() => setResetPicker(false)}
         onSelect={(o) => {
           setResetPicker(false);

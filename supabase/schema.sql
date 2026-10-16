@@ -160,9 +160,9 @@ create policy sf_master_teams_admin_update on public.sf_master_teams for update 
 create policy sf_master_teams_admin_delete on public.sf_master_teams for delete to authenticated using (public.sf_is_admin());
 
 -- team slot names, winners/points and tie-break champion: admins and the committee assigned to that game
-create policy sf_rosters_game_insert on public.sf_rosters for insert to authenticated with check (public.sf_can_edit_game(game_id));
-create policy sf_rosters_game_update on public.sf_rosters for update to authenticated using (public.sf_can_edit_game(game_id)) with check (public.sf_can_edit_game(game_id));
-create policy sf_rosters_game_delete on public.sf_rosters for delete to authenticated using (public.sf_can_edit_game(game_id));
+create policy sf_rosters_admin_insert on public.sf_rosters for insert to authenticated with check (public.sf_is_admin());
+create policy sf_rosters_admin_update on public.sf_rosters for update to authenticated using (public.sf_is_admin()) with check (public.sf_is_admin());
+create policy sf_rosters_admin_delete on public.sf_rosters for delete to authenticated using (public.sf_is_admin());
 
 create policy sf_results_game_insert on public.sf_results for insert to authenticated with check (public.sf_can_edit_game(game_id));
 create policy sf_results_game_update on public.sf_results for update to authenticated using (public.sf_can_edit_game(game_id)) with check (public.sf_can_edit_game(game_id));
