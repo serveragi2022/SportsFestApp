@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -66,6 +66,8 @@ function Root() {
     );
   }
   return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, width: '100%', maxWidth: Platform.OS === 'web' ? 760 : undefined, alignSelf: 'center' }}>
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator screenOptions={headerStyle}>
         <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
@@ -73,6 +75,8 @@ function Root() {
         <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: 'Accounts' }} />
       </Stack.Navigator>
     </NavigationContainer>
+    </View>
+    </View>
   );
 }
 

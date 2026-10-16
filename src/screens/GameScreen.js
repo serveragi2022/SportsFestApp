@@ -13,7 +13,7 @@ import { colors, radius, shadow } from '../theme';
 export default function GameScreen({ route, navigation }) {
   const { gameId, tab: initialTab } = route.params;
   const game = GAME_BY_ID[gameId];
-  const { state } = useStore();
+  const { state, canEditGame, access } = useStore();
   const [tab, setTab] = useState(initialTab || 'matches');
   const results = state.results[gameId] || {};
   const scores = state.scores[gameId] || {};
@@ -36,6 +36,16 @@ export default function GameScreen({ route, navigation }) {
           </View>
         </View>
       </View>
+
+      {!canEditGame(gameId) ? (
+        <View style={styles.viewOnly}>
+          <Text style={styles.viewOnlyText}>
+            {access.role === 'guest'
+              ? 'View only. To select winners, sign in as admin or committee in the Admin tab.'
+              : 'View only. This game is not assigned to your account.'}
+          </Text>
+        </View>
+      ) : null}
 
       <Segmented
         value={tab}
@@ -240,6 +250,8 @@ function CommitteeTab({ game }) {
 }
 
 const styles = StyleSheet.create({
+  viewOnly: { backgroundColor: '#FEF3C7', borderRadius: radius.md, padding: 12, marginBottom: 12 },
+  viewOnlyText: { color: '#92400E', fontWeight: '700', fontSize: 13, lineHeight: 18 },
   screen: { flex: 1, backgroundColor: colors.bg },
   summary: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 14, marginBottom: 14, flexDirection: 'row', ...shadow },
   sumText: { fontWeight: '700', color: colors.text },
