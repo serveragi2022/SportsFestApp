@@ -79,6 +79,14 @@ Please also do these (a few minutes, in the dashboards):
 8. Re-run `supabase/schema.sql` after each update of the app (it is safe to run again).
 `vercel.json` already sends security headers (no framing, no sniffing, HTTPS only).
 
+### Install on the phone (PWA)
+The Vercel link is an installable app (manifest, icons, service worker). People do not need an app store.
+- **Android (Chrome)**: open the link. The Home screen shows an **Install** button (or Chrome menu ⋮ > *Install app*).
+- **iPhone (Safari only)**: open the link in Safari > **Share** > **Add to Home Screen** > **Add**.
+  (Links opened inside Messenger/Facebook/Viber must be opened in Safari first.)
+After installing it opens full screen with the AGI icon. Updates arrive automatically the next time it is opened online.
+The page shell works offline, but scores and standings need internet.
+
 ## How scoring works
 - **Winner only** for most games: open a game, tap **Select winner**, choose the team, confirm. The winner moves to the next match; the loser is **Eliminated**.
 - **Points are encoded** (both teams) for: **Pickleball** (all matches), and the **championship round of Darts and Sungka**.

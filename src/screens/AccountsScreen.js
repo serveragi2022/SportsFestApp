@@ -115,10 +115,10 @@ function NewAccountDialog({ visible, onClose, onCreated, api }) {
       <Text style={styles.title}>New account</Text>
       <ScrollView style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.label}>Name of the person</Text>
-        <TextInput value={f.fullName} onChangeText={(v) => setF({ ...f, fullName: v })} placeholder="e.g. Nel Marasigan" placeholderTextColor={colors.muted} style={styles.input} />
+        <TextInput value={f.fullName} onChangeText={(v) => setF({ ...f, fullName: v })} placeholder="e.g. Ana Cruz" placeholderTextColor={colors.muted} style={styles.input} />
 
         <Text style={styles.label}>Username</Text>
-        <TextInput value={f.username} onChangeText={(v) => setF({ ...f, username: v.replace(/\s/g, '') })} placeholder="e.g. nel.marasigan" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={styles.input} />
+        <TextInput value={f.username} onChangeText={(v) => setF({ ...f, username: v.replace(/\s/g, '') })} placeholder="e.g. ana.cruz" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} style={styles.input} />
 
         <View style={styles.checkHead}>
           <Text style={styles.label}>Password</Text>

@@ -11,7 +11,7 @@ const MEDAL_COLOR = { 1: '#D4A017', 2: '#94A3B8', 3: '#B7791F' };
 
 const STATUS = {
   champion: { label: 'Champion', tone: 'success' },
-  out: { label: 'Lose', tone: 'danger' },
+  out: { label: 'Out', tone: 'danger' },
   playing: { label: 'In play', tone: 'warn' },
   idle: { label: 'Not started', tone: 'neutral' },
 };

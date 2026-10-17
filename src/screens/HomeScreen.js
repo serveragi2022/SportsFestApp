@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { GAMES } from '../data/games';
 import GameIcon, { Trophy } from '../components/GameIcon';
+import InstallBanner from '../components/InstallBanner';
 import { useStore } from '../store';
 import { allMatches, gameProgress, getChampion, matchStatus, matchTeams } from '../engine';
 import TeamChip from '../components/TeamChip';
@@ -31,6 +32,7 @@ export default function HomeScreen({ navigation }) {
 
   const header = (
     <View>
+      <InstallBanner />
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>AGI Sports Fest 2026</Text>
         <Text style={styles.heroSub}>

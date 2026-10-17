@@ -24,5 +24,22 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    <script>
+      // keep the "install" prompt of Android/Chrome so the app can show its own Install button
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__installPrompt = e;
+        window.dispatchEvent(new Event('agi-install-ready'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__installPrompt = null;
+        window.dispatchEvent(new Event('agi-installed'));
+      });
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+    </script>
   </body>
 </html>

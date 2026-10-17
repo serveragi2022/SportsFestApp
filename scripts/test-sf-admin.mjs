@@ -17,7 +17,7 @@ function deps({ admin = true, caller = { id: 'admin1', email: 'a@x.com' }, creat
   };
 }
 const H = 'Bearer good';
-const create = { action: 'create', username: 'Nel.Marasigan', password: 'secret123', fullName: 'Nel Marasigan', gameIds: ['chess', 'darts', 'chess'] };
+const create = { action: 'create', username: ' Ana.Cruz ', password: 'secret123', fullName: 'Ana Cruz', gameIds: ['chess', 'darts', 'chess'] };
 
 // auth
 assert.equal((await handle(null, create, deps())).status, 401);
@@ -30,8 +30,8 @@ let d = deps();
 r = await handle(H, create, d);
 assert.equal(r.status, 200); assert.equal(r.body.userId, 'u9');
 assert.deepEqual(d.log, [
-  ['createUser', 'nel.marasigan@sportsfest.example.com', 'secret123'],
-  ['insertStaff', { user_id: 'u9', username: 'nel.marasigan', email: 'nel.marasigan@sportsfest.example.com', full_name: 'Nel Marasigan', role: 'committee' }],
+  ['createUser', 'ana.cruz@sportsfest.example.com', 'secret123'],
+  ['insertStaff', { user_id: 'u9', username: 'ana.cruz', email: 'ana.cruz@sportsfest.example.com', full_name: 'Ana Cruz', role: 'committee' }],
   ['setGames', 'u9', ['chess', 'darts']],
 ]);
 
