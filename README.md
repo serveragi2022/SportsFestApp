@@ -113,3 +113,8 @@ For Supabase, run `supabase/seed_teams.sql` once to load the starting team list 
 Logic is in `src/engine.js` and `src/standings.js`. Tests: `node scripts/test-engine.mjs` and `node scripts/test-remote.mjs`.
 
 Note: in the Excel, Mobile Legends Game 2 says "Team 1 vs Team 4", but Team 1 already plays Game 1. It is set to **Team 2 vs Team 4** in `games.js`.
+
+## Department & players (update)
+- The department of each team shows in the team-name picker, the Teams tab and the bracket.
+- Only the admin can set team names and encode players (optional, one per line, max 10 per team). Players show under the team in the bracket and Teams tab.
+- After updating, run `supabase/schema.sql` again (adds the `players` column) and redeploy to Vercel.

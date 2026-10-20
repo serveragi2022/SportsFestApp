@@ -57,6 +57,9 @@ await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,cust
 await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,custom_name) values ('chess',2,'Walk-in')`);
 await denied('authenticated', ANA, `insert into sf_results (game_id,match_no,winner,score1,score2) values ('chess',1,1,99999,0)`, 'absurd score rejected');
 await denied('authenticated', ANA, `insert into sf_results (game_id,match_no,winner) values ('chess',1,999)`, 'absurd winner rejected');
+await denied('authenticated', ANA, `insert into sf_rosters (game_id,team_no,players) values ('chess',3,array['X'])`, 'committee cannot set players');
+await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,players) values ('chess',3,array['Ana','Ben'])`);
+await denied('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,players) values ('chess',4,array['1','2','3','4','5','6','7','8','9','10','11'])`, 'too many players rejected');
 // master list: only admin can add, rename or delete
 await noRows('authenticated', ANA, `update sf_master_teams set name = 'Hacked' returning *`, 'committee cannot rename');
 await noRows('authenticated', ANA, `delete from sf_master_teams returning *`, 'committee cannot delete names');

@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { GAMES } from '../data/games';
 import GameIcon, { Trophy } from '../components/GameIcon';
 import InstallBanner from '../components/InstallBanner';
+import OfflineBanner from '../components/OfflineBanner';
 import { useStore } from '../store';
 import { allMatches, gameProgress, getChampion, matchStatus, matchTeams } from '../engine';
 import TeamChip from '../components/TeamChip';
@@ -10,7 +11,7 @@ import { Card, Chip, PressableScale, ProgressBar, SectionTitle } from '../compon
 import { colors, radius, shadow } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const { state, getTeam } = useStore();
+  const { state, getTeam, offline, refreshing, refresh, syncError } = useStore();
 
   const { totalDone, total, upNext, decided } = useMemo(() => {
     let d = 0;
@@ -32,6 +33,13 @@ export default function HomeScreen({ navigation }) {
 
   const header = (
     <View>
+      <OfflineBanner visible={offline} onRetry={refresh} />
+      {syncError && !offline ? (
+        <View style={styles.syncErr}>
+          <Text style={styles.syncErrText}>{syncError}</Text>
+          <Text onPress={refresh} style={styles.syncRetry}>Retry</Text>
+        </View>
+      ) : null}
       <InstallBanner />
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>AGI Sports Fest 2026</Text>
@@ -80,6 +88,7 @@ export default function HomeScreen({ navigation }) {
       keyExtractor={(g) => g.id}
       numColumns={2}
       columnWrapperStyle={{ gap: 12 }}
+      refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} colors={[colors.primary]} tintColor={colors.primary} /> : undefined}
       ListHeaderComponent={header}
       renderItem={({ item: g }) => {
         const results = state.results[g.id] || {};
@@ -129,4 +138,7 @@ const styles = StyleSheet.create({
   gameName: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 6, minHeight: 38 },
   gameMeta: { fontSize: 12, color: colors.muted, fontWeight: '600' },
   champLine: { fontSize: 12, fontWeight: '800', color: colors.success },
+  syncErr: { backgroundColor: colors.warnBg, borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  syncErrText: { flex: 1, color: colors.warn, fontWeight: '700', fontSize: 12, lineHeight: 16 },
+  syncRetry: { color: colors.primary, fontWeight: '800', fontSize: 12 },
 });

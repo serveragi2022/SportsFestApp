@@ -14,15 +14,28 @@ export default function TeamChip({ gameId, teamNo, dim, bold, compact }) {
         <Text style={styles.badgeText}>{teamNo}</Text>
       </View>
       {compact ? (
-        <Text numberOfLines={1} style={[styles.name, bold && { fontWeight: '800' }]}>
-          {team.name ? team.name : `Team ${teamNo}`}
-        </Text>
+        <View style={{ flexShrink: 1 }}>
+          <Text numberOfLines={1} style={[styles.name, bold && { fontWeight: '800' }]}>
+            {team.name ? team.name : `Team ${teamNo}`}
+          </Text>
+          {team.name && team.department ? (
+            <Text numberOfLines={1} style={styles.dept}>
+              {team.department}
+            </Text>
+          ) : null}
+        </View>
       ) : (
         <View style={{ flexShrink: 1 }}>
           <Text style={[styles.title, bold && { fontWeight: '800' }]}>Team {teamNo}</Text>
           {team.name ? (
             <Text numberOfLines={1} style={styles.name}>
               {team.name}
+              {team.department ? <Text style={styles.dept}>{'  ·  ' + team.department}</Text> : null}
+            </Text>
+          ) : null}
+          {team.players && team.players.length ? (
+            <Text numberOfLines={2} style={styles.players}>
+              {team.players.join(', ')}
             </Text>
           ) : null}
         </View>
@@ -37,4 +50,6 @@ const styles = StyleSheet.create({
   badgeText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   title: { fontSize: 15, fontWeight: '700', color: colors.text },
   name: { fontSize: 13, color: colors.muted, flexShrink: 1 },
+  dept: { fontSize: 11, color: colors.primary, fontWeight: '700' },
+  players: { fontSize: 12, color: colors.text, fontStyle: 'italic', marginTop: 1, flexShrink: 1 },
 });

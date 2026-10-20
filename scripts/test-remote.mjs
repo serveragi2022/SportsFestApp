@@ -65,6 +65,21 @@ assert.deepEqual(last(c).ops[0], ['upsert', { game_id: 'chess', team_no: 4, mast
 await r.assignTeam('chess', 4, null);
 assert.deepEqual(opNames(last(c)), ['delete', 'eq', 'eq']);
 
+// clearing a name keeps the row when the slot has players
+await r.assignTeam('chess', 4, null, true);
+assert.deepEqual(last(c).ops[0], ['upsert', { game_id: 'chess', team_no: 4, master_id: null, custom_name: null }]);
+
+// players (admin): saved on the roster row; cleared with null; row deleted only when nothing else is on it
+await r.setPlayers('chess', 4, ['Ana', 'Ben']);
+assert.deepEqual(last(c).ops[0], ['upsert', { game_id: 'chess', team_no: 4, players: ['Ana', 'Ben'] }]);
+await r.setPlayers('chess', 4, [], true);
+assert.deepEqual(last(c).ops[0], ['upsert', { game_id: 'chess', team_no: 4, players: null }]);
+await r.setPlayers('chess', 4, [], false);
+assert.deepEqual(opNames(last(c)), ['delete', 'eq', 'eq']);
+const sp = rowsToState({ rosters: [{ game_id: 'chess', team_no: 1, master_id: 'm1', custom_name: null, players: ['Ana', 'Ben'] }, { game_id: 'chess', team_no: 2, master_id: null, custom_name: null, players: null }] });
+assert.deepEqual(sp.rosters.chess[1], { masterId: 'm1', players: ['Ana', 'Ben'] });
+assert.deepEqual(sp.rosters.chess[2], { name: '' });
+
 // deleteMaster keeps name as custom label first
 c = fakeClient(); r = makeRemote(c);
 await r.deleteMaster('m1', 'Ambassador');

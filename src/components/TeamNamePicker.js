@@ -25,7 +25,7 @@ export default function TeamNamePicker({ visible, gameId, teamNo, onClose }) {
     if (e.name) usedNames.add(e.name.trim().toLowerCase());
   });
   const taken = (t) => usedIds.has(t.id) || usedNames.has(t.name.trim().toLowerCase());
-  const options = state.masterTeams.filter((t) => !taken(t)).map((t) => ({ key: t.id, label: t.name, color: t.color }));
+  const options = state.masterTeams.filter((t) => !taken(t)).map((t) => ({ key: t.id, label: t.name, sub: t.department || undefined, color: t.color }));
 
   const saveCustom = () => {
     const name = custom.trim();

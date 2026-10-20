@@ -12,6 +12,7 @@ export function resolveTeam(state, gameId, teamNo) {
   let name = '';
   let color = null;
   let department = '';
+  const players = entry && Array.isArray(entry.players) ? entry.players : [];
   if (entry) {
     if (entry.masterId) {
       const master = state.masterTeams.find((t) => t.id === entry.masterId);
@@ -25,5 +26,5 @@ export function resolveTeam(state, gameId, teamNo) {
     }
   }
   if (!color) color = name ? hashColor(name.toLowerCase()) : '#64748B';
-  return { no: teamNo, name, color, department, label: name ? `Team ${teamNo} · ${name}` : `Team ${teamNo}` };
+  return { no: teamNo, name, color, department, players, label: name ? `Team ${teamNo} · ${name}` : `Team ${teamNo}` };
 }

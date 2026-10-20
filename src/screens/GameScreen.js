@@ -1,11 +1,13 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GAME_BY_ID } from '../data/games';
 import { useStore } from '../store';
 import { eliminatedTeams, getChampion, gameProgress, matchStatus, matchTeams, robinStandings, slotLabel } from '../engine';
 import MatchCard from '../components/MatchCard';
 import TeamChip from '../components/TeamChip';
 import TeamNamePicker from '../components/TeamNamePicker';
+import PlayersEditor from '../components/PlayersEditor';
+import OfflineBanner from '../components/OfflineBanner';
 import { Trophy } from '../components/GameIcon';
 import { Button, Card, Chip, PressableScale, ProgressBar, Segmented } from '../components/ui';
 import { colors, radius, shadow } from '../theme';
@@ -13,7 +15,7 @@ import { colors, radius, shadow } from '../theme';
 export default function GameScreen({ route, navigation }) {
   const { gameId, tab: initialTab } = route.params;
   const game = GAME_BY_ID[gameId];
-  const { state, canEditGame, access } = useStore();
+  const { state, canEditGame, access, offline, refreshing, refresh, syncError } = useStore();
   const [tab, setTab] = useState(initialTab || 'matches');
   const results = state.results[gameId] || {};
   const scores = state.scores[gameId] || {};
@@ -25,7 +27,19 @@ export default function GameScreen({ route, navigation }) {
   const progress = gameProgress(game, results);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} colors={[colors.primary]} tintColor={colors.primary} /> : undefined}
+    >
+      <OfflineBanner visible={offline} onRetry={refresh} />
+      {syncError && !offline ? (
+        <View style={styles.syncErr}>
+          <Text style={styles.syncErrText}>{syncError}</Text>
+          <Text onPress={refresh} style={styles.syncRetry}>Retry</Text>
+        </View>
+      ) : null}
       <View style={styles.summary}>
         <View style={{ flex: 1 }}>
           <Text style={styles.sumText}>
@@ -202,26 +216,46 @@ function BracketTab({ game, results, scores }) {
 }
 
 function TeamsTab({ game }) {
-  const { getTeam, isAdmin } = useStore(); // only the admin gives names to the teams
+  const { getTeam, isAdmin, setPlayers } = useStore(); // only the admin sets names and players
   const [editing, setEditing] = useState(null);
+  const [playersFor, setPlayersFor] = useState(null);
   const teams = useMemo(() => Array.from({ length: game.teams }, (_, i) => i + 1), [game]);
   return (
     <View>
       <Text style={styles.note}>
         {isAdmin
-          ? 'Give each team its team name. A name that is already used by another team of this game is not shown again.'
+          ? 'Give each team its team name and, if needed, its players. A name that is already used by another team of this game is not shown again.'
           : 'Team names of this game.'}
       </Text>
       {teams.map((n) => {
         const info = getTeam(game.id, n);
         return (
-          <PressableScale key={n} disabled={!isAdmin} haptic={false} scaleTo={0.98} onPress={() => setEditing(n)} style={{ marginBottom: 8 }} innerStyle={styles.teamRow}>
-            <TeamChip gameId={game.id} teamNo={n} />
-            {isAdmin ? <Text style={{ color: colors.primary, fontWeight: '800' }}>{info.name ? 'Change' : 'Set name'}</Text> : null}
-          </PressableScale>
+          <View key={n} style={[styles.teamRow, { marginBottom: 8 }]}>
+            <View style={{ flex: 1 }}>
+              <TeamChip gameId={game.id} teamNo={n} />
+            </View>
+            {isAdmin ? (
+              <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                <Button title={info.name ? 'Change name' : 'Set name'} icon="create-outline" small kind="ghost" onPress={() => setEditing(n)} />
+                <Button title={info.players.length ? 'Players' : 'Add players'} icon="people-outline" small kind="ghost" onPress={() => setPlayersFor(n)} />
+              </View>
+            ) : null}
+          </View>
         );
       })}
       {isAdmin ? <TeamNamePicker visible={editing != null} gameId={game.id} teamNo={editing || 1} onClose={() => setEditing(null)} /> : null}
+      {isAdmin ? (
+        <PlayersEditor
+          visible={playersFor != null}
+          title={playersFor ? `Players of Team ${playersFor}${getTeam(game.id, playersFor).name ? ' · ' + getTeam(game.id, playersFor).name : ''}` : ''}
+          players={playersFor ? getTeam(game.id, playersFor).players : []}
+          onSave={(names) => {
+            setPlayers(game.id, playersFor, names);
+            setPlayersFor(null);
+          }}
+          onClose={() => setPlayersFor(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -252,6 +286,9 @@ function CommitteeTab({ game }) {
 const styles = StyleSheet.create({
   viewOnly: { backgroundColor: '#FEF3C7', borderRadius: radius.md, padding: 12, marginBottom: 12 },
   viewOnlyText: { color: '#92400E', fontWeight: '700', fontSize: 13, lineHeight: 18 },
+  syncErr: { backgroundColor: colors.warnBg, borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  syncErrText: { flex: 1, color: colors.warn, fontWeight: '700', fontSize: 12, lineHeight: 16 },
+  syncRetry: { color: colors.primary, fontWeight: '800', fontSize: 12 },
   screen: { flex: 1, backgroundColor: colors.bg },
   summary: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 14, marginBottom: 14, flexDirection: 'row', ...shadow },
   sumText: { fontWeight: '700', color: colors.text },

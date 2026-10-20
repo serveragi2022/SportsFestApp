@@ -24,7 +24,6 @@ create table if not exists public.sf_master_teams (
   created_at timestamptz not null default now()
 );
 alter table public.sf_master_teams add column if not exists department text;
-
 -- "Team N" of a game -> a team name (from the master list, or a custom name).
 -- Several team numbers may share the same name.
 create table if not exists public.sf_rosters (
@@ -32,8 +31,10 @@ create table if not exists public.sf_rosters (
   team_no int not null,
   master_id uuid references public.sf_master_teams (id) on delete set null,
   custom_name text,
-  primary key (game_id, team_no)
+  primary key (game_id, team_no)`
 );
+-- players of a team slot (optional, filled by the admin)
+alter table public.sf_rosters add column if not exists players text[];
 
 -- Winner of a match. score1/score2 (points of the 1st and 2nd team of the match) are only used by
 -- Pickleball and the Darts / Sungka championship rounds.
@@ -184,6 +185,7 @@ do $$
 begin
   begin alter table public.sf_results add constraint sf_results_sane check (match_no between 1 and 100 and winner between 1 and 50 and (score1 is null or score1 between 0 and 999) and (score2 is null or score2 between 0 and 999)); exception when duplicate_object then null; end;
   begin alter table public.sf_rosters add constraint sf_rosters_sane check (team_no between 1 and 50 and length(coalesce(custom_name, '')) <= 80); exception when duplicate_object then null; end;
+  begin alter table public.sf_rosters add constraint sf_rosters_players_sane check (players is null or (cardinality(players) <= 10 and length(array_to_string(players, '')) <= 600)); exception when duplicate_object then null; end;
   begin alter table public.sf_master_teams add constraint sf_master_teams_sane check (length(name) between 1 and 80 and length(coalesce(department, '')) <= 40); exception when duplicate_object then null; end;
 end $$;
 

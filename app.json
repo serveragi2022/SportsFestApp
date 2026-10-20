@@ -26,6 +26,9 @@
       "themeColor": "#1E40AF",
       "backgroundColor": "#F4F6FB",
       "display": "standalone"
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

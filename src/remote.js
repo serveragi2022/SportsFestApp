@@ -31,7 +31,9 @@ export function rowsToState({ masters = [], rosters = [], results = [], tiebreak
   state.masterTeams = sortTeams(masters.map((r) => ({ id: r.id, name: r.name, color: r.color, department: r.department || '' })));
   rosters.forEach((r) => {
     if (!state.rosters[r.game_id]) state.rosters[r.game_id] = {};
-    state.rosters[r.game_id][r.team_no] = r.master_id ? { masterId: r.master_id } : { name: r.custom_name || '' };
+    const entry = r.master_id ? { masterId: r.master_id } : { name: r.custom_name || '' };
+    if (Array.isArray(r.players) && r.players.length) entry.players = r.players;
+    state.rosters[r.game_id][r.team_no] = entry;
   });
   results.forEach((r) => {
     if (!state.results[r.game_id]) state.results[r.game_id] = {};
@@ -177,9 +179,14 @@ export function makeRemote(client) {
       check(await db(TABLES.tiebreak).upsert({ game_id: gameId, team_no: team }));
     },
 
-    async assignTeam(gameId, teamNo, value) {
+    // keepRow: the slot also has players, so clearing the name must not delete the row.
+    async assignTeam(gameId, teamNo, value, keepRow = false) {
       if (!value) {
-        check(await db(TABLES.rosters).delete().eq('game_id', gameId).eq('team_no', teamNo));
+        if (keepRow) {
+          check(await db(TABLES.rosters).upsert({ game_id: gameId, team_no: teamNo, master_id: null, custom_name: null }));
+        } else {
+          check(await db(TABLES.rosters).delete().eq('game_id', gameId).eq('team_no', teamNo));
+        }
         return;
       }
       check(
@@ -190,6 +197,15 @@ export function makeRemote(client) {
           custom_name: value.masterId ? null : value.name || null,
         })
       );
+    },
+
+    // Players of a team slot (admin only). keepRow: the slot also has a name, so only the players are cleared.
+    async setPlayers(gameId, teamNo, players, keepRow = false) {
+      if (!players.length && !keepRow) {
+        check(await db(TABLES.rosters).delete().eq('game_id', gameId).eq('team_no', teamNo));
+        return;
+      }
+      check(await db(TABLES.rosters).upsert({ game_id: gameId, team_no: teamNo, players: players.length ? players : null }));
     },
 
     async addMaster(team) {
@@ -228,7 +244,7 @@ export function makeRemote(client) {
       check(await db(TABLES.masters).delete().not('id', 'is', null));
     },
 
-    // Calls onChange (debounced) whenever any Sports Fest table changes. Returns an unsubscribe function.
+    // Legacy: calls onChange (debounced) whenever any Sports Fest table changes. Kept for backward compatibility.
     subscribe(onChange) {
       let timer = null;
       const fire = () => {
@@ -238,6 +254,33 @@ export function makeRemote(client) {
       let channel = client.channel('sportsfest-live');
       [TABLES.masters, TABLES.rosters, TABLES.results, TABLES.tiebreak, TABLES.committee].forEach((table) => {
         channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, fire);
+      });
+      channel.subscribe();
+      return () => {
+        clearTimeout(timer);
+        client.removeChannel(channel);
+      };
+    },
+
+    // Incremental: calls onPatch per changed row (batched, ~80ms). Preferred over subscribe() — avoids full fetchAll().
+    // onPatch: ({ table, eventType, new: row|null, old: row|null }) => void
+    subscribePatches(onPatch) {
+      let timer = null;
+      let batch = [];
+      const flush = () => {
+        const toSend = batch.splice(0);
+        // Coalesce: if storm of >30 events, fallback is handled by caller via refresh()
+        toSend.forEach(onPatch);
+        timer = null;
+      };
+      const push = (payload) => {
+        batch.push({ table: payload.table, eventType: payload.eventType, new: payload.new, old: payload.old });
+        clearTimeout(timer);
+        timer = setTimeout(flush, 80);
+      };
+      let channel = client.channel('sportsfest-live-patch');
+      [TABLES.masters, TABLES.rosters, TABLES.results, TABLES.tiebreak, TABLES.committee].forEach((table) => {
+        channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, push);
       });
       channel.subscribe();
       return () => {

@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { StoreProvider, useStore } from './src/store';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { colors } from './src/theme';
 import HomeScreen from './src/screens/HomeScreen';
 import GameScreen from './src/screens/GameScreen';
@@ -82,11 +83,13 @@ function Root() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" />
-      <StoreProvider>
-        <Root />
-      </StoreProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <StoreProvider>
+          <Root />
+        </StoreProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
