@@ -16,6 +16,8 @@ const NAMES = {
   ml: 'sword-cross',
   sungka: 'dots-grid',
   scrabble: 'alphabetical-variant',
+  'cheer-dance': 'human-female-dance',
+  muse: 'crown',
 };
 
 export default function GameIcon({ id, size = 22, color = colors.primary, style }) {

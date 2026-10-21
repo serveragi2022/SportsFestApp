@@ -86,12 +86,28 @@ await r.deleteMaster('m1', 'Ambassador');
 assert.deepEqual(c.log.map((x) => x.table), [TABLES.rosters, TABLES.masters]);
 assert.deepEqual(c.log[0].ops[0], ['update', { master_id: null, custom_name: 'Ambassador' }]);
 
+// match times + Cheer Dance / Muse placements
+const st2 = rowsToState({ times: [{ game_id: 'badminton-wd', match_no: 1, time_text: '8:00 - 8:30' }], placements: [{ event_id: 'muse', place: 1, department: 'QCA' }] });
+assert.equal(st2.times['badminton-wd'][1], '8:00 - 8:30');
+assert.equal(st2.placements.muse[1], 'QCA');
+c = fakeClient(); r = makeRemote(c);
+await r.setMatchTime('badminton-wd', 1, '9:00');
+assert.deepEqual(c.log.map((x) => [x.table, x.ops[0][0]]), [[TABLES.times, 'upsert']]);
+await r.setMatchTime('badminton-wd', 1, '');
+assert.equal(last(c).ops[0][0], 'delete');
+c = fakeClient(); r = makeRemote(c);
+await r.setPlacement('muse', 2, 'QCA');
+assert.deepEqual(c.log.map((x) => [x.table, x.ops[0][0]]), [[TABLES.placements, 'delete'], [TABLES.placements, 'delete'], [TABLES.placements, 'insert']]);
+c = fakeClient(); r = makeRemote(c);
+await r.setPlacement('muse', 2, '');
+assert.equal(c.log.length, 1);
+
 // reset
 c = fakeClient(); r = makeRemote(c);
 await r.resetEverything();
-assert.equal(c.log.length, 5);
+assert.equal(c.log.length, 7); // + match times, placements
 await r.resetGame('darts');
-assert.deepEqual(c.log.slice(5).map((x) => x.table), [TABLES.results, TABLES.tiebreak]);
+assert.deepEqual(c.log.slice(7).map((x) => x.table), [TABLES.results, TABLES.tiebreak]);
 
 // fetchAll + errors
 c = fakeClient({ [TABLES.masters]: [{ id: 'm1', name: 'A', color: '#fff' }] });

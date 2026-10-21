@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Alert } from '../dialog';
 import { useStore } from '../store';
 import { allMatches, downstream, eliminatedTeams, matchStatus, matchTeams, slotLabel } from '../engine';
 import TeamChip from './TeamChip';
 import ScoreModal from './ScoreModal';
-import { Button, Chip, PickerModal } from './ui';
+import { Button, Chip, PickerModal, TextPromptModal } from './ui';
 import { colors, radius, shadow } from '../theme';
 
 // One team row. Pops when it becomes the winner.
@@ -46,10 +46,13 @@ function WaitRow({ slot }) {
 }
 
 export default function MatchCard({ game, match, results, scores = {} }) {
-  const { getTeam, setResult, clearResult, isAdmin, canEditGame } = useStore();
+  const { getTeam, setResult, clearResult, isAdmin, canEditGame, matchTime, setMatchTime } = useStore();
   const canEdit = canEditGame(game.id); // admin, or committee assigned to this game
   const [picking, setPicking] = useState(false);
   const [scoring, setScoring] = useState(false);
+  const [timing, setTiming] = useState(false);
+  const [timeText, setTimeText] = useState('');
+  const time = matchTime(game.id, match);
 
   const status = matchStatus(match, results);
   const teams = matchTeams(match, results);
@@ -142,7 +145,19 @@ export default function MatchCard({ game, match, results, scores = {} }) {
       <View style={styles.head}>
         <Text style={styles.gameNo}>Game {match.no}</Text>
         <View style={{ flexDirection: 'row', gap: 6, flexShrink: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {match.time ? <Chip label={match.time} tone="info" /> : null}
+          {isAdmin ? (
+            <Pressable
+              hitSlop={6}
+              onPress={() => {
+                setTimeText(time);
+                setTiming(true);
+              }}
+            >
+              <Chip label={time ? `${time} ✎` : 'Set time ✎'} tone="info" />
+            </Pressable>
+          ) : time ? (
+            <Chip label={time} tone="info" />
+          ) : null}
           {match.venue ? <Chip label={match.venue} /> : null}
           {match.scoring ? <Chip label="Points" tone="warn" /> : null}
           <Chip label={status === 'done' ? 'Done' : status === 'ready' ? 'Ready' : 'Waiting'} tone={status === 'done' ? 'success' : status === 'ready' ? 'warn' : 'neutral'} />
@@ -161,6 +176,21 @@ export default function MatchCard({ game, match, results, scores = {} }) {
           {center}
         </>
       )}
+
+      <TextPromptModal
+        visible={timing}
+        title={`Time of Game ${match.no}`}
+        value={timeText}
+        onChangeText={setTimeText}
+        placeholder="e.g. 8:00 - 8:30 AM"
+        allowEmpty
+        saveLabel="Save time"
+        onClose={() => setTiming(false)}
+        onSave={() => {
+          setTiming(false);
+          setMatchTime(game.id, match.no, timeText);
+        }}
+      />
 
       <PickerModal
         visible={picking}

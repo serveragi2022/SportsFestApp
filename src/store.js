@@ -30,6 +30,8 @@ const initialState = {
   scores: {}, // { [gameId]: { [matchNo]: [pointsSlot1, pointsSlot2] } }  (scored rounds only)
   tiebreak: {}, // { [gameId]: teamNo }
   committee: {}, // { [gameId]: { [role]: name } }  (overrides of the defaults)
+  times: {}, // { [gameId]: { [matchNo]: 'text' } }  (admin-set match times; override the default time)
+  placements: {}, // { [eventId]: { [place 1..8]: department } }  (Cheer Dance / Muse)
 };
 
 function withoutKeys(obj, keys) {
@@ -134,6 +136,24 @@ function reducer(state, action) {
     case 'SET_COMMITTEE': {
       const cur = state.committee[action.gameId] || {};
       return { ...state, committee: { ...state.committee, [action.gameId]: { ...cur, [action.role]: action.name } } };
+    }
+
+    case 'SET_MATCH_TIME': {
+      const cur = { ...(state.times[action.gameId] || {}) };
+      if (action.text) cur[action.matchNo] = action.text;
+      else delete cur[action.matchNo];
+      return { ...state, times: { ...state.times, [action.gameId]: cur } };
+    }
+
+    case 'SET_PLACEMENT': {
+      const cur = { ...(state.placements[action.eventId] || {}) };
+      // a department can only hold one place in an event
+      Object.keys(cur).forEach((pl) => {
+        if (action.department && cur[pl] === action.department) delete cur[pl];
+      });
+      if (action.department) cur[action.place] = action.department;
+      else delete cur[action.place];
+      return { ...state, placements: { ...state.placements, [action.eventId]: cur } };
     }
 
     case 'RESET_GAME':
@@ -494,6 +514,14 @@ export function StoreProvider({ children }) {
         run({ type: 'DELETE_MASTER', id }, (r) => r.deleteMaster(id, gone ? gone.name : ''), 'admin');
       },
       setCommittee: (gameId, role, name) => run({ type: 'SET_COMMITTEE', gameId, role, name }, (r) => r.setCommittee(gameId, role, name), 'admin'),
+      // admin only: time text of one match (empty = back to the default time)
+      setMatchTime: (gameId, matchNo, text) => {
+        const t = String(text || '').trim().slice(0, 60);
+        run({ type: 'SET_MATCH_TIME', gameId, matchNo, text: t }, (r) => r.setMatchTime(gameId, matchNo, t), 'admin');
+      },
+      // Cheer Dance / Muse: department of place 1..8 (admin, or committee assigned to the event)
+      setPlacement: (eventId, place, department) =>
+        run({ type: 'SET_PLACEMENT', eventId, place, department: department || '' }, (r) => r.setPlacement(eventId, place, department || ''), { game: eventId }),
       resetGame: (gameId) => run({ type: 'RESET_GAME', gameId }, (r) => r.resetGame(gameId), 'admin'),
       resetAllResults: () => run({ type: 'RESET_ALL_RESULTS' }, (r) => r.resetAllResults(), 'admin'),
       resetEverything: () => run({ type: 'RESET_EVERYTHING' }, (r) => r.resetEverything(), 'admin'),
@@ -512,6 +540,9 @@ export function StoreProvider({ children }) {
   const signOut = useCallback(async () => {
     if (supabase) await supabase.auth.signOut();
   }, []);
+
+  // shown time of a match: the admin's time, else the default one of the app
+  const matchTime = useCallback((gameId, match) => ((state.times[gameId] || {})[match.no]) || match.time || '', [state.times]);
 
   const canEditGame = useCallback((gameId) => can(access, { game: gameId }), [access]);
   const isStaff = access.role === 'admin' || access.role === 'committee';
@@ -535,9 +566,10 @@ export function StoreProvider({ children }) {
       signOut,
       getTeam,
       getCommittee,
+      matchTime,
       ...actions,
     }),
-    [state, loaded, access, isAdmin, isStaff, canEditGame, session, syncError, offline, refreshing, refresh, signIn, signOut, getTeam, getCommittee, actions]
+    [state, loaded, access, isAdmin, isStaff, canEditGame, session, syncError, offline, refreshing, refresh, signIn, signOut, getTeam, getCommittee, matchTime, actions]
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

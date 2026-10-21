@@ -64,6 +64,23 @@ await denied('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,pl
 await noRows('authenticated', ANA, `update sf_master_teams set name = 'Hacked' returning *`, 'committee cannot rename');
 await noRows('authenticated', ANA, `delete from sf_master_teams returning *`, 'committee cannot delete names');
 // committee list of a game is admin only
+// match times: admin only
+await denied('authenticated', ANA, `insert into sf_match_times (game_id,match_no,time_text) values ('chess',1,'8:00')`, 'committee cannot set match times');
+await ok('authenticated', ADMIN, `insert into sf_match_times (game_id,match_no,time_text) values ('chess',1,'8:00 - 8:30')`);
+await denied('authenticated', ADMIN, `insert into sf_match_times (game_id,match_no,time_text) values ('chess',2,'')`, 'empty time rejected');
+r = await ok('anon', null, `select time_text from sf_match_times`); assert.equal(r.rows.length, 1, 'guest can read times');
+// Cheer Dance / Muse: admin, or committee assigned to the event
+await db.exec(`insert into sf_staff_games (user_id,game_id) values ('${ANA}','muse')`);
+await ok('authenticated', ANA, `insert into sf_placements (event_id,place,department) values ('muse',1,'QCA')`);
+await denied('authenticated', ANA, `insert into sf_placements (event_id,place,department) values ('cheer-dance',1,'QCA')`, 'committee not assigned to cheer-dance');
+await denied('authenticated', BEN, `insert into sf_placements (event_id,place,department) values ('muse',2,'PRD')`, 'other committee cannot encode muse');
+await denied('authenticated', ANA, `insert into sf_placements (event_id,place,department) values ('muse',2,'QCA')`, 'a department holds one place per event');
+await denied('authenticated', ADMIN, `insert into sf_placements (event_id,place,department) values ('muse',9,'PRD')`, 'place 9 rejected');
+await denied('authenticated', ADMIN, `insert into sf_placements (event_id,place,department) values ('chess',1,'PRD')`, 'unknown event rejected');
+await ok('authenticated', ADMIN, `insert into sf_placements (event_id,place,department) values ('cheer-dance',1,'Admin')`);
+await denied('anon', null, `insert into sf_placements (event_id,place,department) values ('muse',3,'PRD')`, 'guest cannot encode');
+r = await ok('anon', null, `select count(*)::int c from sf_placements`); assert.equal(r.rows[0].c, 2, 'guest can read placements');
+await db.exec(`delete from sf_staff_games where user_id='${ANA}' and game_id='muse'`);
 await denied('authenticated', ANA, `insert into sf_committee (game_id,role,name) values ('chess','Arbiter','Me')`, 'committee list');
 await ok('authenticated', ADMIN, `insert into sf_committee (game_id,role,name) values ('chess','Arbiter','Zed')`);
 // signed-in user without a role, and guests

@@ -17,6 +17,8 @@ export const TABLES = {
   results: 'sf_results',
   tiebreak: 'sf_tiebreak',
   committee: 'sf_committee',
+  times: 'sf_match_times',
+  placements: 'sf_placements',
   admins: 'sf_admins',
   staff: 'sf_staff',
   staffGames: 'sf_staff_games',
@@ -26,8 +28,8 @@ import { sortTeams } from './data/departments.js';
 
 export const ADMIN_FUNCTION = 'sf-admin';
 
-export function rowsToState({ masters = [], rosters = [], results = [], tiebreak = [], committee = [] }) {
-  const state = { masterTeams: [], rosters: {}, results: {}, scores: {}, tiebreak: {}, committee: {} };
+export function rowsToState({ masters = [], rosters = [], results = [], tiebreak = [], committee = [], times = [], placements = [] }) {
+  const state = { masterTeams: [], rosters: {}, results: {}, scores: {}, tiebreak: {}, committee: {}, times: {}, placements: {} };
   state.masterTeams = sortTeams(masters.map((r) => ({ id: r.id, name: r.name, color: r.color, department: r.department || '' })));
   rosters.forEach((r) => {
     if (!state.rosters[r.game_id]) state.rosters[r.game_id] = {};
@@ -49,6 +51,14 @@ export function rowsToState({ masters = [], rosters = [], results = [], tiebreak
   committee.forEach((r) => {
     if (!state.committee[r.game_id]) state.committee[r.game_id] = {};
     state.committee[r.game_id][r.role] = r.name;
+  });
+  times.forEach((r) => {
+    if (!state.times[r.game_id]) state.times[r.game_id] = {};
+    state.times[r.game_id][r.match_no] = r.time_text;
+  });
+  placements.forEach((r) => {
+    if (!state.placements[r.event_id]) state.placements[r.event_id] = {};
+    state.placements[r.event_id][r.place] = r.department;
   });
   return state;
 }
@@ -91,15 +101,19 @@ export function makeRemote(client) {
 
   return {
     async fetchAll() {
-      const [masters, rosters, results, tiebreak, committee] = await Promise.all([
+      // times / placements are new tables: an old database without them must not break the app
+      const soft = (q) => Promise.resolve(q).then((r) => (r && !r.error ? r : { data: [] })).catch(() => ({ data: [] }));
+      const [masters, rosters, results, tiebreak, committee, times, placements] = await Promise.all([
         db(TABLES.masters).select('*'),
         db(TABLES.rosters).select('*'),
         db(TABLES.results).select('*'),
         db(TABLES.tiebreak).select('*'),
         db(TABLES.committee).select('*'),
+        soft(db(TABLES.times).select('*')),
+        soft(db(TABLES.placements).select('*')),
       ]);
       [masters, rosters, results, tiebreak, committee].forEach(check);
-      return rowsToState({ masters: masters.data, rosters: rosters.data, results: results.data, tiebreak: tiebreak.data, committee: committee.data });
+      return rowsToState({ masters: masters.data, rosters: rosters.data, results: results.data, tiebreak: tiebreak.data, committee: committee.data, times: times.data, placements: placements.data });
     },
 
     async checkAdmin(userId) {
@@ -222,6 +236,22 @@ export function makeRemote(client) {
       check(await db(TABLES.masters).delete().eq('id', id));
     },
 
+    // Time text of a match (admin only). Empty text removes it (the default time of the app shows again).
+    async setMatchTime(gameId, matchNo, text) {
+      if (!text) {
+        check(await db(TABLES.times).delete().eq('game_id', gameId).eq('match_no', matchNo));
+        return;
+      }
+      check(await db(TABLES.times).upsert({ game_id: gameId, match_no: matchNo, time_text: text }));
+    },
+
+    // Cheer Dance / Muse: department of a place (1..8). Empty department clears the place.
+    async setPlacement(eventId, place, department) {
+      if (department) check(await db(TABLES.placements).delete().eq('event_id', eventId).eq('department', department));
+      check(await db(TABLES.placements).delete().eq('event_id', eventId).eq('place', place));
+      if (department) check(await db(TABLES.placements).insert({ event_id: eventId, place, department }));
+    },
+
     async setCommittee(gameId, role, name) {
       check(await db(TABLES.committee).upsert({ game_id: gameId, role, name }));
     },
@@ -240,6 +270,8 @@ export function makeRemote(client) {
       check(await db(TABLES.results).delete().neq('game_id', ''));
       check(await db(TABLES.tiebreak).delete().neq('game_id', ''));
       check(await db(TABLES.committee).delete().neq('game_id', ''));
+      await db(TABLES.times).delete().neq('game_id', '');
+      await db(TABLES.placements).delete().neq('event_id', '');
       check(await db(TABLES.rosters).delete().neq('game_id', ''));
       check(await db(TABLES.masters).delete().not('id', 'is', null));
     },
@@ -283,9 +315,16 @@ export function makeRemote(client) {
         channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, push);
       });
       channel.subscribe();
+      // separate channel for the newer tables, so an old database without them cannot break the main one
+      let extra = client.channel('sportsfest-live-extra');
+      [TABLES.times, TABLES.placements].forEach((table) => {
+        extra = extra.on('postgres_changes', { event: '*', schema: 'public', table }, push);
+      });
+      extra.subscribe();
       return () => {
         clearTimeout(timer);
         client.removeChannel(channel);
+        client.removeChannel(extra);
       };
     },
   };

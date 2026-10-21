@@ -118,3 +118,9 @@ Note: in the Excel, Mobile Legends Game 2 says "Team 1 vs Team 4", but Team 1 al
 - The department of each team shows in the team-name picker, the Teams tab and the bracket.
 - Only the admin can set team names and encode players (optional, one per line, max 10 per team). Players show under the team in the bracket and Teams tab.
 - After updating, run `supabase/schema.sql` again (adds the `players` column) and redeploy to Vercel.
+
+## Match times, WS/WD changes, Cheer Dance & Muse
+- Admin can set/edit the time of every match (tap the time chip on the match card). Empty = default time. Stored in `sf_match_times`.
+- Badminton Women's Singles: 7 teams (Game 4 = Team 4 vs winner of Game 1). Women's Doubles: 6 teams, Round 1 Semi-Finals (Games 1-3), Round 2 Championship = round robin of the 3 winners (Games 4-6); points only break ties on wins.
+- Cheer Dance and Muse: encode the DEPARTMENT of 1st-8th place (100/75/60/50/40/30/20/10 points; no place = 0). Admin, or a committee account assigned to "Cheer Dance"/"Muse" in Accounts. The combined points of a team's department are only the FINAL tie-breaker of the overall ranking (percent first).
+- After updating, run `supabase/schema.sql` again (new tables `sf_match_times`, `sf_placements`) and redeploy.

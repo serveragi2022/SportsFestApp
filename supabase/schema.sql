@@ -31,7 +31,7 @@ create table if not exists public.sf_rosters (
   team_no int not null,
   master_id uuid references public.sf_master_teams (id) on delete set null,
   custom_name text,
-  primary key (game_id, team_no)`
+  primary key (game_id, team_no)
 );
 -- players of a team slot (optional, filled by the admin)
 alter table public.sf_rosters add column if not exists players text[];
@@ -46,6 +46,24 @@ create table if not exists public.sf_results (
   score2 int,
   updated_at timestamptz not null default now(),
   primary key (game_id, match_no)
+);
+
+-- Time of a match (editable by the admin). Overrides the default time written in the app.
+create table if not exists public.sf_match_times (
+  game_id text not null,
+  match_no int not null,
+  time_text text not null,
+  primary key (game_id, match_no)
+);
+
+-- Cheer Dance / Muse: which DEPARTMENT finished in which place (1..8). Admin, or a committee account assigned to the event
+-- (event_id 'cheer-dance' or 'muse', put in sf_staff_games like a game).
+create table if not exists public.sf_placements (
+  event_id text not null,
+  place int not null,
+  department text not null,
+  primary key (event_id, place),
+  unique (event_id, department)
 );
 
 -- Champion picked by the admin when a round robin is still tied after wins and points.
@@ -122,6 +140,8 @@ alter table public.sf_rosters      enable row level security;
 alter table public.sf_results      enable row level security;
 alter table public.sf_tiebreak     enable row level security;
 alter table public.sf_committee    enable row level security;
+alter table public.sf_match_times  enable row level security;
+alter table public.sf_placements   enable row level security;
 
 -- start clean so this file can be run again after an update
 do $$
@@ -131,7 +151,7 @@ begin
   for r in
     select schemaname, tablename, policyname from pg_policies
     where schemaname = 'public'
-      and tablename in ('sf_admins','sf_staff','sf_staff_games','sf_master_teams','sf_rosters','sf_results','sf_tiebreak','sf_committee')
+      and tablename in ('sf_admins','sf_staff','sf_staff_games','sf_master_teams','sf_rosters','sf_results','sf_tiebreak','sf_committee','sf_match_times','sf_placements')
   loop
     execute format('drop policy if exists %I on %I.%I', r.policyname, r.schemaname, r.tablename);
   end loop;
@@ -154,6 +174,8 @@ create policy sf_rosters_read      on public.sf_rosters      for select to anon,
 create policy sf_results_read      on public.sf_results      for select to anon, authenticated using (true);
 create policy sf_tiebreak_read     on public.sf_tiebreak     for select to anon, authenticated using (true);
 create policy sf_committee_read    on public.sf_committee    for select to anon, authenticated using (true);
+create policy sf_match_times_read  on public.sf_match_times  for select to anon, authenticated using (true);
+create policy sf_placements_read   on public.sf_placements   for select to anon, authenticated using (true);
 
 -- team names list: only admins can add, rename or delete
 create policy sf_master_teams_admin_insert on public.sf_master_teams for insert to authenticated with check (public.sf_is_admin());
@@ -178,6 +200,17 @@ create policy sf_committee_admin_insert on public.sf_committee for insert to aut
 create policy sf_committee_admin_update on public.sf_committee for update to authenticated using (public.sf_is_admin()) with check (public.sf_is_admin());
 create policy sf_committee_admin_delete on public.sf_committee for delete to authenticated using (public.sf_is_admin());
 
+-- match times: admins only. Cheer Dance / Muse places: admins and the committee assigned to the event
+create policy sf_match_times_admin_insert on public.sf_match_times for insert to authenticated with check (public.sf_is_admin());
+create policy sf_match_times_admin_update on public.sf_match_times for update to authenticated using (public.sf_is_admin()) with check (public.sf_is_admin());
+create policy sf_match_times_admin_delete on public.sf_match_times for delete to authenticated using (public.sf_is_admin());
+
+create policy sf_placements_event_insert on public.sf_placements for insert to authenticated with check (public.sf_can_edit_game(event_id));
+create policy sf_placements_event_update on public.sf_placements for update to authenticated using (public.sf_can_edit_game(event_id)) with check (public.sf_can_edit_game(event_id));
+create policy sf_placements_event_delete on public.sf_placements for delete to authenticated using (public.sf_can_edit_game(event_id));
+
+grant select on public.sf_match_times, public.sf_placements to anon, authenticated;
+grant insert, update, delete on public.sf_match_times, public.sf_placements to authenticated;
 grant select on public.sf_master_teams, public.sf_rosters, public.sf_results, public.sf_tiebreak, public.sf_committee to anon, authenticated;
 grant insert, update, delete on public.sf_master_teams, public.sf_rosters, public.sf_results, public.sf_tiebreak, public.sf_committee to authenticated;
 -- sanity limits (stops junk values even from a signed-in committee account)
@@ -186,6 +219,8 @@ begin
   begin alter table public.sf_results add constraint sf_results_sane check (match_no between 1 and 100 and winner between 1 and 50 and (score1 is null or score1 between 0 and 999) and (score2 is null or score2 between 0 and 999)); exception when duplicate_object then null; end;
   begin alter table public.sf_rosters add constraint sf_rosters_sane check (team_no between 1 and 50 and length(coalesce(custom_name, '')) <= 80); exception when duplicate_object then null; end;
   begin alter table public.sf_rosters add constraint sf_rosters_players_sane check (players is null or (cardinality(players) <= 10 and length(array_to_string(players, '')) <= 600)); exception when duplicate_object then null; end;
+  begin alter table public.sf_match_times add constraint sf_match_times_sane check (match_no between 1 and 100 and length(time_text) between 1 and 60); exception when duplicate_object then null; end;
+  begin alter table public.sf_placements add constraint sf_placements_sane check (event_id in ('cheer-dance', 'muse') and place between 1 and 8 and length(department) between 1 and 40); exception when duplicate_object then null; end;
   begin alter table public.sf_master_teams add constraint sf_master_teams_sane check (length(name) between 1 and 80 and length(coalesce(department, '')) <= 40); exception when duplicate_object then null; end;
 end $$;
 
@@ -198,7 +233,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['sf_master_teams', 'sf_rosters', 'sf_results', 'sf_tiebreak', 'sf_committee']
+  foreach t in array array['sf_master_teams', 'sf_rosters', 'sf_results', 'sf_tiebreak', 'sf_committee', 'sf_match_times', 'sf_placements']
   loop
     begin
       execute format('alter publication supabase_realtime add table public.%I', t);

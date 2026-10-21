@@ -1,5 +1,6 @@
 import { GAMES } from './data/games.js';
 import { compareTeams } from './data/departments.js';
+import { departmentPoints } from './data/events.js';
 import { allMatches, eliminatedTeams, getChampion, matchTeams } from './engine.js';
 import { resolveTeam } from './teams.js';
 
@@ -84,6 +85,7 @@ export function computeStandings(state) {
     });
   });
 
+  const deptPts = departmentPoints(state.placements);
   return [...groups.values()].map((g) => ({
     key: g.key,
     name: g.name,
@@ -91,6 +93,8 @@ export function computeStandings(state) {
     department: g.department,
     gamesWon: g.gamesWon,
     percent: Math.min(100, g.gamesWon * PERCENT_PER_GAME_WON),
+    // Cheer Dance + Muse standing points of the team's DEPARTMENT; only the final tie-breaker of the ranking
+    tiePoints: deptPts[g.department] || 0,
     wins: g.wins,
     losses: g.losses,
     champions: g.champions,
@@ -126,12 +130,14 @@ export function groupByDepartment(state, list) {
 }
 
 // All teams, best percent first. Only the percent counts (games won as champion); match wins/losses do not.
-// Teams with the same percent share the same rank and keep the fixed list order.
+// FINAL tie-breaker: when the percent is level, the Cheer Dance + Muse standing points of the team's department decide.
+// Teams still level share the same rank and keep the fixed list order.
 export function rankByPercent(list) {
-  const sorted = [...list].sort((a, b) => b.percent - a.percent || compareTeams(a, b));
+  const sorted = [...list].sort((a, b) => b.percent - a.percent || (b.tiePoints || 0) - (a.tiePoints || 0) || compareTeams(a, b));
+  const same = (a, b) => a.percent === b.percent && (a.tiePoints || 0) === (b.tiePoints || 0);
   let rank = 0;
   return sorted.map((r, i) => {
-    if (i === 0 || r.percent !== sorted[i - 1].percent) rank = i + 1;
+    if (i === 0 || !same(r, sorted[i - 1])) rank = i + 1;
     return { ...r, rank };
   });
 }

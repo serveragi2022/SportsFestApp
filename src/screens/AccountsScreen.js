@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GAMES, GAME_BY_ID } from '../data/games';
+import { EVENTS, EVENT_BY_ID } from '../data/events';
+
+// committee accounts can be assigned to bracket games and to the Cheer Dance / Muse events
+const ASSIGNABLE = [...GAMES, ...EVENTS];
 import GameIcon from '../components/GameIcon';
 import { Alert } from '../dialog';
 import { useStore } from '../store';
@@ -11,7 +15,7 @@ import { colors, radius, shadow } from '../theme';
 
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const makePassword = () => Array.from({ length: 8 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
-const gameLabel = (id) => (GAME_BY_ID[id] ? GAME_BY_ID[id].short || GAME_BY_ID[id].name : id);
+const gameLabel = (id) => (GAME_BY_ID[id] ? GAME_BY_ID[id].short || GAME_BY_ID[id].name : EVENT_BY_ID[id] ? EVENT_BY_ID[id].name : id);
 
 // Bottom/center dialog shell
 function Dialog({ visible, onClose, children }) {
@@ -27,17 +31,17 @@ function Dialog({ visible, onClose, children }) {
 
 // Tick the games a committee account may score.
 function GameChecklist({ value, onChange }) {
-  const all = value.length === GAMES.length;
+  const all = value.length === ASSIGNABLE.length;
   const toggle = (id) => onChange(value.includes(id) ? value.filter((g) => g !== id) : [...value, id]);
   return (
     <View>
       <View style={styles.checkHead}>
-        <Text style={styles.label}>Games ({value.length} of {GAMES.length})</Text>
-        <Pressable onPress={() => onChange(all ? [] : GAMES.map((g) => g.id))} hitSlop={8}>
+        <Text style={styles.label}>Games ({value.length} of {ASSIGNABLE.length})</Text>
+        <Pressable onPress={() => onChange(all ? [] : ASSIGNABLE.map((g) => g.id))} hitSlop={8}>
           <Text style={styles.link}>{all ? 'Clear all' : 'Select all'}</Text>
         </Pressable>
       </View>
-      {GAMES.map((g) => {
+      {ASSIGNABLE.map((g) => {
         const on = value.includes(g.id);
         return (
           <Pressable key={g.id} onPress={() => toggle(g.id)} style={[styles.checkRow, on && styles.checkRowOn]}>

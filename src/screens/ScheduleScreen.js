@@ -8,7 +8,7 @@ import { Chip, FilterChip, PickerModal, PressableScale } from '../components/ui'
 import { colors, radius, shadow } from '../theme';
 
 export default function ScheduleScreen({ navigation }) {
-  const { state, getTeam } = useStore();
+  const { state, getTeam, matchTime } = useStore();
   const [status, setStatus] = useState('all'); // all | upcoming | done
   const [gameFilter, setGameFilter] = useState(null);
   const [nameFilter, setNameFilter] = useState(null);
@@ -73,9 +73,9 @@ export default function ScheduleScreen({ navigation }) {
               </Text>
               <Chip label={row.status === 'done' ? 'Done' : row.status === 'ready' ? 'Ready' : 'Waiting'} tone={row.status === 'done' ? 'success' : row.status === 'ready' ? 'warn' : 'neutral'} />
             </View>
-            {row.match.time || row.match.venue ? (
+            {matchTime(row.game.id, row.match) || row.match.venue ? (
               <Text style={styles.when}>
-                {[row.match.time, row.match.venue].filter(Boolean).join(' · ')}
+                {[matchTime(row.game.id, row.match), row.match.venue].filter(Boolean).join(' · ')}
               </Text>
             ) : null}
             <View style={{ gap: 6 }}>

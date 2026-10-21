@@ -173,7 +173,7 @@ export function PickerModal({ visible, title, options, onSelect, onClose, footer
   );
 }
 
-export function TextPromptModal({ visible, title, value, onChangeText, onSave, onClose, saveLabel = 'Save', children }) {
+export function TextPromptModal({ visible, title, value, onChangeText, onSave, onClose, saveLabel = 'Save', children, placeholder = 'Team name', allowEmpty = false }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -183,7 +183,7 @@ export function TextPromptModal({ visible, title, value, onChangeText, onSave, o
           <TextInput
             value={value}
             onChangeText={onChangeText}
-            placeholder="Team name"
+            placeholder={placeholder}
             placeholderTextColor={colors.muted}
             style={styles.input}
             autoFocus
@@ -193,7 +193,7 @@ export function TextPromptModal({ visible, title, value, onChangeText, onSave, o
           {children}
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <Button title="Cancel" kind="ghost" onPress={onClose} style={{ flex: 1 }} />
-            <Button title={saveLabel} onPress={onSave} style={{ flex: 1 }} disabled={!String(value).trim()} />
+            <Button title={saveLabel} onPress={onSave} style={{ flex: 1 }} disabled={!allowEmpty && !String(value).trim()} />
           </View>
         </View>
       </View>

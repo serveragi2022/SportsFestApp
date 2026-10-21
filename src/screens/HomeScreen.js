@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { GAMES } from '../data/games';
+import { EVENTS } from '../data/events';
 import GameIcon, { Trophy } from '../components/GameIcon';
 import InstallBanner from '../components/InstallBanner';
 import OfflineBanner from '../components/OfflineBanner';
@@ -11,7 +12,7 @@ import { Card, Chip, PressableScale, ProgressBar, SectionTitle } from '../compon
 import { colors, radius, shadow } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const { state, getTeam, offline, refreshing, refresh, syncError } = useStore();
+  const { state, getTeam, offline, refreshing, refresh, syncError, matchTime } = useStore();
 
   const { totalDone, total, upNext, decided } = useMemo(() => {
     let d = 0;
@@ -64,7 +65,7 @@ export default function HomeScreen({ navigation }) {
                       {game.short || game.name} · Game {match.no}
                     </Text>
                   </View>
-                  {match.time ? <Chip label={match.time} tone="info" /> : match.venue || game.venue ? <Chip label={match.venue || game.venue} /> : null}
+                  {matchTime(game.id, match) ? <Chip label={matchTime(game.id, match)} tone="info" /> : match.venue || game.venue ? <Chip label={match.venue || game.venue} /> : null}
                 </View>
                 <View style={{ marginTop: 8, gap: 6 }}>
                   {teams.map((t, i) => (
@@ -90,6 +91,25 @@ export default function HomeScreen({ navigation }) {
       columnWrapperStyle={{ gap: 12 }}
       refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} colors={[colors.primary]} tintColor={colors.primary} /> : undefined}
       ListHeaderComponent={header}
+      ListFooterComponent={
+        <View>
+          <SectionTitle>Department events</SectionTitle>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {EVENTS.map((e) => {
+              const placed = Object.keys((state.placements && state.placements[e.id]) || {}).length;
+              return (
+                <PressableScale key={e.id} style={{ flex: 1 }} innerStyle={{ flex: 1 }} haptic={false} scaleTo={0.96} onPress={() => navigation.navigate('Event', { eventId: e.id })}>
+                  <View style={styles.gameCard}>
+                    <GameIcon id={e.id} size={32} />
+                    <Text style={styles.gameName} numberOfLines={2}>{e.name}</Text>
+                    <Chip label={placed ? `${placed} of 8 places set` : 'Not set'} tone={placed ? 'info' : 'neutral'} />
+                  </View>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </View>
+      }
       renderItem={({ item: g }) => {
         const results = state.results[g.id] || {};
         const p = gameProgress(g, results);

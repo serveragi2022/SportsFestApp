@@ -46,11 +46,12 @@ export const GAMES = [
     name: "Badminton Women's Singles",
     short: 'Badminton (WS)',
     venue: 'Court 1',
-    teams: 8,
+    teams: 7,
     rounds: [
-      { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(5)]), m(2, [T(2), T(6)]), m(3, [T(3), T(7)]), m(4, [T(4), T(8)])] },
-      { name: 'Round 2: Semi-Finals', type: 'elim', matches: [m(5, [W(1), W(2)]), m(6, [W(3), W(4)])] },
-      { name: 'Round 3: Championship', type: 'elim', matches: [m(7, [W(5), W(6)])] },
+      { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(5)]), m(2, [T(2), T(6)]), m(3, [T(3), T(7)])] },
+      // Team 4 has no qualifying match: Game 4 waits for the winner of Game 1.
+      { name: 'Round 2: Semi-Finals', type: 'elim', matches: [m(4, [T(4), W(1)]), m(5, [W(2), W(3)])] },
+      { name: 'Round 3: Championship', type: 'elim', matches: [m(6, [W(4), W(5)])] },
     ],
     committee: [
       ['Tournament Head', 'Nicko Mantuano'],
@@ -79,11 +80,20 @@ export const GAMES = [
     name: "Badminton Women's Doubles",
     short: 'Badminton (WD)',
     venue: 'Court 2',
-    teams: 5,
+    teams: 6,
     rounds: [
-      { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(5)])] },
-      { name: 'Round 2: Semi-Finals', type: 'elim', matches: [m(2, [T(2), T(3)]), m(3, [T(4), W(1)])] },
-      { name: 'Round 3: Championship', type: 'elim', matches: [m(4, [W(2), W(3)])] },
+      {
+        name: 'Round 1: Semi-Finals',
+        type: 'elim',
+        matches: [m(1, [T(1), T(2)], { time: '8:00 - 8:30' }), m(2, [T(3), T(4)], { time: '8:30 - 9:00' }), m(3, [T(5), T(6)], { time: '9:00 - 9:30' })],
+      },
+      // Championship = round robin of the 3 semi-final winners. Points are only used when the wins are level.
+      {
+        name: 'Round 2: Championship (Round Robin)',
+        type: 'robin',
+        scoring: true,
+        matches: [m(4, [W(1), W(2)], { time: '9:30 - 10:00' }), m(5, [W(3), W(2)], { time: '10:00 - 10:30' }), m(6, [W(1), W(3)], { time: '10:30 - 11:00' })],
+      },
     ],
     committee: [
       ['Tournament Head', 'Nicko Mantuano'],
