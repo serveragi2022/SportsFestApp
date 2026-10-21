@@ -124,3 +124,10 @@ Note: in the Excel, Mobile Legends Game 2 says "Team 1 vs Team 4", but Team 1 al
 - Badminton Women's Singles: 7 teams (Game 4 = Team 4 vs winner of Game 1). Women's Doubles: 6 teams, Round 1 Semi-Finals (Games 1-3), Round 2 Championship = round robin of the 3 winners (Games 4-6); points only break ties on wins.
 - Cheer Dance and Muse: encode the DEPARTMENT of 1st-8th place (100/75/60/50/40/30/20/10 points; no place = 0). Admin, or a committee account assigned to "Cheer Dance"/"Muse" in Accounts. The combined points of a team's department are only the FINAL tie-breaker of the overall ranking (percent first).
 - After updating, run `supabase/schema.sql` again (new tables `sf_match_times`, `sf_placements`) and redeploy.
+
+## Offline-safe encoding + My team
+- Every change (winner, points, time, team names...) first goes into an **outbox saved on the device** (`src/outbox.js`) and is then sent to Supabase in order. With no/weak signal the change stays visible on the screen and in the outbox (even if the app is closed), a banner shows "N changes waiting to be sent", and it is sent automatically when the connection is back (retries every 15 s, plus when the phone reconnects). Changes the server really refuses (no permission) are dropped and reported.
+- Last write wins: if two people change the same match while offline, the one sent last stays.
+- The app opens right away with the last saved data when the signal is bad.
+- Home > **My team**: each person picks their team name once (kept on that phone) and sees its percent, rank, next games with time and opponent, and results.
+- Tests: `node --experimental-strip-types scripts/test-outbox.mjs` and `test-myteam.mjs`.

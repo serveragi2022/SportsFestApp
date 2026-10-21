@@ -5,6 +5,7 @@ import { EVENTS } from '../data/events';
 import GameIcon, { Trophy } from '../components/GameIcon';
 import InstallBanner from '../components/InstallBanner';
 import OfflineBanner from '../components/OfflineBanner';
+import MyTeamCard from '../components/MyTeamCard';
 import { useStore } from '../store';
 import { allMatches, gameProgress, getChampion, matchStatus, matchTeams } from '../engine';
 import TeamChip from '../components/TeamChip';
@@ -12,7 +13,7 @@ import { Card, Chip, PressableScale, ProgressBar, SectionTitle } from '../compon
 import { colors, radius, shadow } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const { state, getTeam, offline, refreshing, refresh, syncError, matchTime } = useStore();
+  const { state, getTeam, offline, refreshing, refresh, syncError, matchTime, pending, retry } = useStore();
 
   const { totalDone, total, upNext, decided } = useMemo(() => {
     let d = 0;
@@ -34,11 +35,11 @@ export default function HomeScreen({ navigation }) {
 
   const header = (
     <View>
-      <OfflineBanner visible={offline} onRetry={refresh} />
+      <OfflineBanner visible={offline} offline={offline} pending={pending} onRetry={retry} />
       {syncError && !offline ? (
         <View style={styles.syncErr}>
           <Text style={styles.syncErrText}>{syncError}</Text>
-          <Text onPress={refresh} style={styles.syncRetry}>Retry</Text>
+          <Text onPress={retry} style={styles.syncRetry}>Retry</Text>
         </View>
       ) : null}
       <InstallBanner />
@@ -51,6 +52,8 @@ export default function HomeScreen({ navigation }) {
           <ProgressBar done={totalDone} total={total} color="#FDBA74" />
         </View>
       </View>
+
+      <MyTeamCard navigation={navigation} />
 
       {upNext.length > 0 && (
         <View>

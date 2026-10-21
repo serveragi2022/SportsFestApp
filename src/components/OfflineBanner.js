@@ -3,12 +3,18 @@ import { Text, View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 
-export default function OfflineBanner({ visible, onRetry }) {
-  if (!visible) return null;
+// offline: no connection. pending: changes saved on this device that are not on the server yet.
+export default function OfflineBanner({ visible, offline, pending = 0, onRetry }) {
+  if (!visible && !pending) return null;
+  const msg = offline
+    ? pending
+      ? `Offline — ${pending} change${pending > 1 ? 's' : ''} saved on this phone, will send when back online`
+      : 'Offline — showing the last saved scores'
+    : `${pending} change${pending > 1 ? 's' : ''} waiting to be sent…`;
   return (
     <View style={styles.wrap}>
-      <Ionicons name="cloud-offline-outline" size={14} color="#fff" style={{ marginRight: 6 }} />
-      <Text style={styles.text}>Offline — scores will sync when back online</Text>
+      <Ionicons name={offline ? 'cloud-offline-outline' : 'sync-outline'} size={14} color="#fff" style={{ marginRight: 6 }} />
+      <Text style={[styles.text, { flexShrink: 1, textAlign: 'center' }]}>{msg}</Text>
       {onRetry ? (
         <Text onPress={onRetry} style={styles.retry}>Retry</Text>
       ) : null}

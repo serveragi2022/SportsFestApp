@@ -15,7 +15,7 @@ import { colors, radius, shadow } from '../theme';
 export default function GameScreen({ route, navigation }) {
   const { gameId, tab: initialTab } = route.params;
   const game = GAME_BY_ID[gameId];
-  const { state, canEditGame, access, offline, refreshing, refresh, syncError } = useStore();
+  const { state, canEditGame, access, offline, refreshing, refresh, syncError, pending, retry } = useStore();
   const [tab, setTab] = useState(initialTab || 'matches');
   const results = state.results[gameId] || {};
   const scores = state.scores[gameId] || {};
@@ -33,11 +33,11 @@ export default function GameScreen({ route, navigation }) {
       keyboardShouldPersistTaps="handled"
       refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} colors={[colors.primary]} tintColor={colors.primary} /> : undefined}
     >
-      <OfflineBanner visible={offline} onRetry={refresh} />
+      <OfflineBanner visible={offline} offline={offline} pending={pending} onRetry={retry} />
       {syncError && !offline ? (
         <View style={styles.syncErr}>
           <Text style={styles.syncErrText}>{syncError}</Text>
-          <Text onPress={refresh} style={styles.syncRetry}>Retry</Text>
+          <Text onPress={retry} style={styles.syncRetry}>Retry</Text>
         </View>
       ) : null}
       <View style={styles.summary}>

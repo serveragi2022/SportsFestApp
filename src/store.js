@@ -5,6 +5,7 @@ import { downstream } from './engine';
 import { resolveTeam } from './teams';
 import { supabase } from './supabase';
 import { makeRemote, TABLES } from './remote';
+import { createOutbox, isRetryableError } from './outbox';
 import { can, GUEST, loginToEmail } from './permissions';
 import { DEFAULT_TEAMS, sortTeams } from './data/departments';
 
@@ -19,6 +20,8 @@ try {
 const STORAGE_KEY = 'sportsfest:v2';
 const OLD_STORAGE_KEY = 'sportsfest:v1';
 const CLOUD_CACHE_KEY = 'sportsfest:cloud-cache:v1';
+const OUTBOX_KEY = 'sportsfest:outbox:v1';
+const MYTEAM_KEY = 'sportsfest:myteam:v1';
 
 // Cloud mode when Supabase is configured (.env), otherwise everything stays on the device.
 const remote = supabase ? makeRemote(supabase) : null;
@@ -247,11 +250,27 @@ export function StoreProvider({ children }) {
   const [syncError, setSyncError] = useState(null);
   const [offline, setOffline] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pending, setPending] = useState(0); // changes saved on this device, still waiting to be sent to the server
+  const [myTeam, setMyTeamState] = useState(null); // team name this device follows (Home > My team)
   const skipFirstSave = useRef(true);
   const stateRef = useRef(state);
   const accessRef = useRef(access);
   const sessionRef = useRef(session);
-  const queueRef = useRef(Promise.resolve()); // saves to Supabase run one after another, in order
+  // Saves to Supabase go through a persistent queue (src/outbox.js): sent in order, kept while offline.
+  const outboxRef = useRef(null);
+  if (remote && !outboxRef.current) {
+    outboxRef.current = createOutbox({
+      storage: AsyncStorage,
+      key: OUTBOX_KEY,
+      execute: (e) => remote[e.op[0]](...e.op.slice(1)),
+      decide: (e) => {
+        const s = sessionRef.current;
+        if (!s) return 'wait';
+        return !e.userId || e.userId === s.user.id ? 'run' : 'drop';
+      },
+      onChange: (n) => setPending(n),
+    });
+  }
   stateRef.current = state;
   accessRef.current = access;
   sessionRef.current = session;
@@ -282,12 +301,14 @@ export function StoreProvider({ children }) {
     try {
       const next = await remote.fetchAll();
       dispatch({ type: 'LOAD', state: next });
+      // changes still waiting in the outbox stay visible on top of the server data
+      outboxRef.current.entries().forEach((e) => dispatch(e.action));
       setSyncError(null);
       // the admin may have changed which games this account can score
       const s = sessionRef.current;
       if (s) setAccess(await remote.getAccess(s.user.id));
     } catch (e) {
-      setSyncError(e.message || 'Cannot reach the server');
+      setSyncError(isRetryableError(e) ? 'No connection to the server — showing the last saved data.' : e.message || 'Cannot reach the server');
       // fallback to cached cloud state when offline
       try {
         const raw = await AsyncStorage.getItem(CLOUD_CACHE_KEY);
@@ -297,6 +318,21 @@ export function StoreProvider({ children }) {
       setRefreshing(false);
     }
   }, []);
+
+  // Sends the waiting changes. Returns when done (or when it has to wait for the network).
+  const flushNow = useCallback(async () => {
+    const ob = outboxRef.current;
+    if (!remote || !ob || ob.size() === 0) return;
+    const r = await ob.flush();
+    if (r.dropped.length) {
+      setSyncError(`${r.dropped.length} change${r.dropped.length > 1 ? 's were' : ' was'} not saved: ${r.dropped[0].error.message || 'refused by the server'}`);
+      refresh(); // show what the server really has
+    } else if (r.blocked) {
+      setSyncError(null);
+    } else if (r.sent > 0) {
+      setSyncError(null);
+    }
+  }, [refresh]);
 
   const applyPatch = useCallback(
     (payload) => {
@@ -365,8 +401,13 @@ export function StoreProvider({ children }) {
     let fallbackUnsub = null;
     (async () => {
       try {
+        await outboxRef.current.load();
         const cached = await AsyncStorage.getItem(CLOUD_CACHE_KEY);
-        if (cached) dispatch({ type: 'LOAD', state: JSON.parse(cached) });
+        if (cached) {
+          dispatch({ type: 'LOAD', state: JSON.parse(cached) });
+          outboxRef.current.entries().forEach((e) => dispatch(e.action));
+          setLoaded(true); // show the last saved data at once; do not wait for a slow / missing connection
+        }
       } catch (e) {}
       await refresh();
       setLoaded(true);
@@ -402,9 +443,33 @@ export function StoreProvider({ children }) {
   // retry sync when coming back online
   useEffect(() => {
     if (!remote || offline) return;
-    // when reconnecting, ensure we are consistent
-    refresh();
-  }, [offline, refresh]);
+    // when reconnecting: send what was saved offline first, then reload
+    flushNow().then(refresh);
+  }, [offline, refresh, flushNow]);
+
+  const retry = useCallback(() => flushNow().then(refresh), [flushNow, refresh]);
+
+  // keep trying while changes are waiting (the signal may be weak without NetInfo noticing)
+  useEffect(() => {
+    if (!remote || !pending) return undefined;
+    const t = setInterval(flushNow, 15000);
+    return () => clearInterval(t);
+  }, [pending, flushNow]);
+
+  // when somebody signs in, changes waiting for that account can go out
+  useEffect(() => {
+    if (remote && session) flushNow();
+  }, [session, flushNow]);
+
+  // ----- "My team" (stays on this device)
+  useEffect(() => {
+    AsyncStorage.getItem(MYTEAM_KEY).then((v) => v && setMyTeamState(v)).catch(() => {});
+  }, []);
+  const setMyTeam = useCallback((name) => {
+    setMyTeamState(name || null);
+    if (name) AsyncStorage.setItem(MYTEAM_KEY, name).catch(() => {});
+    else AsyncStorage.removeItem(MYTEAM_KEY).catch(() => {});
+  }, []);
 
   // ----- cloud: who is signed in, and are they an admin?
   useEffect(() => {
@@ -449,33 +514,19 @@ export function StoreProvider({ children }) {
     [state.committee]
   );
 
-  // Every write goes through here: permission check (see permissions.js), optimistic local update,
-  // then sync to Supabase (queued, so e.g. "add team name" is saved before "use it for Team 3").
+  // Every write goes through here: permission check (see permissions.js), optimistic local update, then the change is
+  // put in the outbox (saved on the device) and sent to Supabase in order. op = ['remoteMethod', ...args].
   const run = useCallback(
-    (action, remoteCall, perm) => {
+    (action, op, perm) => {
       if (!can(accessRef.current, perm)) return false;
       dispatch(action);
-      if (remote && remoteCall) {
-        if (offline) {
-          setSyncError('Offline — change saved locally, will sync when back online');
-          // queue for retry when online: keep optimistic state, retry on reconnect
-          queueRef.current = queueRef.current
-            .then(() => remoteCall(remote))
-            .catch((e) => {
-              setSyncError(e.message || 'Could not save — will retry when online');
-            });
-          return true;
-        }
-        queueRef.current = queueRef.current
-          .then(() => remoteCall(remote))
-          .catch((e) => {
-            setSyncError(e.message || 'Could not save');
-            refresh();
-          });
+      if (remote && op) {
+        outboxRef.current.enqueue({ userId: sessionRef.current ? sessionRef.current.user.id : null, action, op });
+        flushNow();
       }
       return true;
     },
-    [refresh, offline]
+    [flushNow]
   );
 
   const actions = useMemo(
@@ -484,47 +535,47 @@ export function StoreProvider({ children }) {
       setResult: (gameId, matchNo, team, scores) => {
         const prev = (stateRef.current.results[gameId] || {})[matchNo];
         const later = prev != null && prev !== team ? downstream(GAME_BY_ID[gameId], matchNo) : [];
-        run({ type: 'SET_RESULT', gameId, matchNo, team, scores }, (r) => r.setResult(gameId, matchNo, team, scores || null, later), { game: gameId });
+        run({ type: 'SET_RESULT', gameId, matchNo, team, scores }, ['setResult', gameId, matchNo, team, scores || null, later], { game: gameId });
       },
       clearResult: (gameId, matchNo) => {
         const gone = [matchNo, ...downstream(GAME_BY_ID[gameId], matchNo)];
-        run({ type: 'CLEAR_RESULT', gameId, matchNo }, (r) => r.clearResult(gameId, gone), 'admin');
+        run({ type: 'CLEAR_RESULT', gameId, matchNo }, ['clearResult', gameId, gone], 'admin');
       },
-      setTiebreak: (gameId, team) => run({ type: 'SET_TIEBREAK', gameId, team }, (r) => r.setTiebreak(gameId, team), { game: gameId }),
+      setTiebreak: (gameId, team) => run({ type: 'SET_TIEBREAK', gameId, team }, ['setTiebreak', gameId, team], { game: gameId }),
       assignTeam: (gameId, teamNo, value) => {
         const cur = ((stateRef.current.rosters[gameId] || {})[teamNo]) || {};
         const hasPlayers = !!(cur.players && cur.players.length);
-        run({ type: 'ASSIGN_TEAM', gameId, teamNo, value }, (r) => r.assignTeam(gameId, teamNo, value, hasPlayers), 'admin');
+        run({ type: 'ASSIGN_TEAM', gameId, teamNo, value }, ['assignTeam', gameId, teamNo, value, hasPlayers], 'admin');
       },
       // players of a team: array of names (admin only)
       setPlayers: (gameId, teamNo, names) => {
         const players = (names || []).map((n) => String(n).trim().slice(0, 40)).filter(Boolean).slice(0, 10);
         const cur = ((stateRef.current.rosters[gameId] || {})[teamNo]) || {};
         const keepRow = !!(cur.masterId || cur.name);
-        run({ type: 'SET_PLAYERS', gameId, teamNo, players }, (r) => r.setPlayers(gameId, teamNo, players, keepRow), 'admin');
+        run({ type: 'SET_PLAYERS', gameId, teamNo, players }, ['setPlayers', gameId, teamNo, players, keepRow], 'admin');
       },
       addMaster: (name, color, department = '') => {
         const team = { id: uuid(), name: name.trim(), color, department: (department || '').trim() };
-        run({ type: 'ADD_MASTER', team }, (r) => r.addMaster(team), 'admin');
+        run({ type: 'ADD_MASTER', team }, ['addMaster', team], 'admin');
         return team;
       },
-      updateMaster: (team) => run({ type: 'UPDATE_MASTER', team }, (r) => r.updateMaster(team), 'admin'),
+      updateMaster: (team) => run({ type: 'UPDATE_MASTER', team }, ['updateMaster', team], 'admin'),
       deleteMaster: (id) => {
         const gone = stateRef.current.masterTeams.find((t) => t.id === id);
-        run({ type: 'DELETE_MASTER', id }, (r) => r.deleteMaster(id, gone ? gone.name : ''), 'admin');
+        run({ type: 'DELETE_MASTER', id }, ['deleteMaster', id, gone ? gone.name : ''], 'admin');
       },
-      setCommittee: (gameId, role, name) => run({ type: 'SET_COMMITTEE', gameId, role, name }, (r) => r.setCommittee(gameId, role, name), 'admin'),
+      setCommittee: (gameId, role, name) => run({ type: 'SET_COMMITTEE', gameId, role, name }, ['setCommittee', gameId, role, name], 'admin'),
       // admin only: time text of one match (empty = back to the default time)
       setMatchTime: (gameId, matchNo, text) => {
         const t = String(text || '').trim().slice(0, 60);
-        run({ type: 'SET_MATCH_TIME', gameId, matchNo, text: t }, (r) => r.setMatchTime(gameId, matchNo, t), 'admin');
+        run({ type: 'SET_MATCH_TIME', gameId, matchNo, text: t }, ['setMatchTime', gameId, matchNo, t], 'admin');
       },
       // Cheer Dance / Muse: department of place 1..8 (admin, or committee assigned to the event)
       setPlacement: (eventId, place, department) =>
-        run({ type: 'SET_PLACEMENT', eventId, place, department: department || '' }, (r) => r.setPlacement(eventId, place, department || ''), { game: eventId }),
-      resetGame: (gameId) => run({ type: 'RESET_GAME', gameId }, (r) => r.resetGame(gameId), 'admin'),
-      resetAllResults: () => run({ type: 'RESET_ALL_RESULTS' }, (r) => r.resetAllResults(), 'admin'),
-      resetEverything: () => run({ type: 'RESET_EVERYTHING' }, (r) => r.resetEverything(), 'admin'),
+        run({ type: 'SET_PLACEMENT', eventId, place, department: department || '' }, ['setPlacement', eventId, place, department || ''], { game: eventId }),
+      resetGame: (gameId) => run({ type: 'RESET_GAME', gameId }, ['resetGame', gameId], 'admin'),
+      resetAllResults: () => run({ type: 'RESET_ALL_RESULTS' }, ['resetAllResults'], 'admin'),
+      resetEverything: () => run({ type: 'RESET_EVERYTHING' }, ['resetEverything'], 'admin'),
     }),
     [run]
   );
@@ -561,6 +612,10 @@ export function StoreProvider({ children }) {
       syncError,
       offline,
       refreshing,
+      pending,
+      retry,
+      myTeam,
+      setMyTeam,
       refresh,
       signIn,
       signOut,
@@ -569,7 +624,7 @@ export function StoreProvider({ children }) {
       matchTime,
       ...actions,
     }),
-    [state, loaded, access, isAdmin, isStaff, canEditGame, session, syncError, offline, refreshing, refresh, signIn, signOut, getTeam, getCommittee, matchTime, actions]
+    [state, loaded, access, isAdmin, isStaff, canEditGame, session, syncError, offline, refreshing, pending, retry, myTeam, setMyTeam, refresh, signIn, signOut, getTeam, getCommittee, matchTime, actions]
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
