@@ -2,6 +2,22 @@
 // The admin can type any other department when adding a team name.
 export const DEPARTMENTS = ['EEG/CC', 'SALES', 'ACC/FIN', 'WH/PPD', 'KZN/MMG', 'PRD', 'QCA', 'Admin'];
 
+// "House" colors: every department has its own color (bars, podium, live board).
+export const DEPT_COLORS = {
+  'EEG/CC': '#0284C7',
+  SALES: '#EA580C',
+  'ACC/FIN': '#0D9488',
+  'WH/PPD': '#7C3AED',
+  'KZN/MMG': '#DB2777',
+  PRD: '#65A30D',
+  QCA: '#DC2626',
+  Admin: '#4F46E5',
+};
+export const deptColor = (d) => {
+  const k = Object.keys(DEPT_COLORS).find((x) => x.toLowerCase() === (d || '').trim().toLowerCase());
+  return k ? DEPT_COLORS[k] : '#64748B';
+};
+
 // Starting list of team names (local mode starts with these; for Supabase run supabase/seed_teams.sql).
 export const DEFAULT_TEAMS = [
   ['Magnificent1', 'EEG/CC'],

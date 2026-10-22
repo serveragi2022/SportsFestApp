@@ -131,3 +131,8 @@ Note: in the Excel, Mobile Legends Game 2 says "Team 1 vs Team 4", but Team 1 al
 - The app opens right away with the last saved data when the signal is bad.
 - Home > **My team**: each person picks their team name once (kept on that phone) and sees its percent, rank, next games with time and opponent, and results.
 - Tests: `node --experimental-strip-types scripts/test-outbox.mjs` and `test-myteam.mjs`.
+
+## Look & Live board
+- Style: "arena scoreboard" - navy + gold, Barlow Condensed for numbers/headings, and a color per department ("house" colors in `src/data/departments.js`).
+- Home header is a small scoreboard (leading team + one tick per match). Standings > Ranking shows a podium.
+- **Live board** (Home > Live board, or open `/live` on the web): full-screen, rotates Standings / Up next / Champions every 10 s; tap = next panel. Made for a TV or projector; updates by itself.

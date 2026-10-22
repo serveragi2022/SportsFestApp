@@ -14,6 +14,9 @@ export const colors = {
   warn: '#B45309',
   warnBg: '#FEF3C7',
   waitBg: '#F1F5F9',
+  gold: '#F6B800',
+  night: '#0A1130',
+  night2: '#16205A',
 };
 
 export const radius = { sm: 8, md: 12, lg: 18 };

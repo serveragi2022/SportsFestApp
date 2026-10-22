@@ -6,6 +6,8 @@ import GameIcon, { Trophy } from '../components/GameIcon';
 import InstallBanner from '../components/InstallBanner';
 import OfflineBanner from '../components/OfflineBanner';
 import MyTeamCard from '../components/MyTeamCard';
+import HeroBoard from '../components/HeroBoard';
+import { computeStandings, leadingTeams } from '../standings';
 import { useStore } from '../store';
 import { allMatches, gameProgress, getChampion, matchStatus, matchTeams } from '../engine';
 import TeamChip from '../components/TeamChip';
@@ -33,6 +35,8 @@ export default function HomeScreen({ navigation }) {
     return { totalDone: d, total: t, upNext: next.slice(0, 4), decided: champs };
   }, [state.results, state.tiebreak, state.scores]);
 
+  const leaders = useMemo(() => leadingTeams(computeStandings(state)), [state]);
+
   const header = (
     <View>
       <OfflineBanner visible={offline} offline={offline} pending={pending} onRetry={retry} />
@@ -43,15 +47,7 @@ export default function HomeScreen({ navigation }) {
         </View>
       ) : null}
       <InstallBanner />
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>AGI Sports Fest 2026</Text>
-        <Text style={styles.heroSub}>
-          {totalDone} of {total} matches done · {decided} of {GAMES.length} champions
-        </Text>
-        <View style={{ marginTop: 12 }}>
-          <ProgressBar done={totalDone} total={total} color="#FDBA74" />
-        </View>
-      </View>
+      <HeroBoard leaders={leaders} done={totalDone} total={total} decided={decided} games={GAMES.length} onLive={() => navigation.navigate('Live')} />
 
       <MyTeamCard navigation={navigation} />
 

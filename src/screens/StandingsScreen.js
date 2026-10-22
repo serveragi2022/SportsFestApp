@@ -4,6 +4,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import GameIcon, { Trophy } from '../components/GameIcon';
 import { useStore } from '../store';
 import { computeStandings, groupByDepartment, leadingTeams, rankByPercent } from '../standings';
+import Podium from '../components/Podium';
+import { deptColor } from '../data/departments';
+import { font } from '../fonts';
 import { Card, Chip, PressableScale, Segmented } from '../components/ui';
 import { colors, radius, shadow } from '../theme';
 
@@ -29,15 +32,13 @@ function TeamRow({ r, rank, showDept, open, onToggle }) {
   const full = r.percent >= 100;
   return (
     <PressableScale onPress={onToggle} haptic={false} scaleTo={0.98} style={{ marginBottom: 5 }}>
-      <View style={styles.row}>
+      <View style={[styles.row, { borderLeftWidth: 5, borderLeftColor: deptColor(r.department) }]}>
         <View style={styles.rowTop}>
           {rank ? (
-            <View style={[styles.rankDot, { backgroundColor: MEDAL_COLOR[rank] || r.color }]}>
+            <View style={[styles.rankDot, { backgroundColor: MEDAL_COLOR[rank] || deptColor(r.department) }]}>
               <Text style={styles.rankDotText}>{rank}</Text>
             </View>
-          ) : (
-            <View style={[styles.colorDot, { backgroundColor: r.color }]} />
-          )}
+          ) : null}
           <View style={{ flex: 1 }}>
             <Text style={styles.name} numberOfLines={1}>
               {r.name}
@@ -47,7 +48,7 @@ function TeamRow({ r, rank, showDept, open, onToggle }) {
           <Text style={[styles.percent, full && { color: colors.success }]}>{r.percent}%</Text>
         </View>
         <View style={styles.track}>
-          <View style={[styles.fill, { width: `${r.percent}%`, backgroundColor: full ? colors.success : colors.primary }]} />
+          <View style={[styles.fill, { width: `${r.percent}%`, backgroundColor: full ? colors.success : deptColor(r.department) }]} />
         </View>
 
         {open ? (
@@ -91,6 +92,8 @@ export default function StandingsScreen() {
   const ranked = useMemo(() => rankByPercent(list), [list]);
   const leaders = useMemo(() => leadingTeams(list), [list]);
   const anyWon = list.some((r) => r.gamesWon > 0);
+  const podium = useMemo(() => (anyWon ? ranked.filter((r) => r.percent > 0).slice(0, 3) : []), [ranked, anyWon]);
+  const podiumKeys = new Set(podium.map((r) => r.key));
 
   const toggle = (key) => setOpen(open === key ? null : key);
 
@@ -104,7 +107,8 @@ export default function StandingsScreen() {
           { key: 'ranking', label: 'Ranking' },
         ]}
       />
-      {leaders.length ? (
+      {view === 'ranking' && podium.length ? <Podium teams={podium} /> : null}
+      {view === 'department' && leaders.length ? (
         <View style={styles.leader}>
           <Text style={styles.leaderLabel}>{leaders.length > 1 ? 'Leading teams (tie)' : 'Leading team'}</Text>
           {leaders.map((t) => (
@@ -130,28 +134,33 @@ export default function StandingsScreen() {
       {view === 'department'
         ? groups.map(({ department, teams }) => (
             <View key={department || 'none'} style={{ marginBottom: 8 }}>
-              <Text style={styles.dept}>{department || 'No department'}</Text>
+              <View style={styles.deptHead}>
+                <View style={[styles.deptBar, { backgroundColor: deptColor(department) }]} />
+                <Text style={styles.dept}>{department || 'No department'}</Text>
+              </View>
               {teams.map((r) => (
                 <TeamRow key={r.key} r={r} open={open === r.key} onToggle={() => toggle(r.key)} />
               ))}
             </View>
           ))
-        : ranked.map((r) => <TeamRow key={r.key} r={r} showDept rank={anyWon && r.percent > 0 ? r.rank : null} open={open === r.key} onToggle={() => toggle(r.key)} />)}
+        : ranked.filter((r) => !podiumKeys.has(r.key)).map((r) => <TeamRow key={r.key} r={r} showDept rank={anyWon && r.percent > 0 ? r.rank : null} open={open === r.key} onToggle={() => toggle(r.key)} />)}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  leader: { backgroundColor: colors.primary, borderRadius: radius.md, padding: 12, marginTop: 12 },
+  leader: { backgroundColor: colors.night, borderRadius: radius.md, padding: 12, marginTop: 12 },
   leaderLabel: { color: '#BFD0FF', fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  leaderName: { color: '#fff', fontSize: 20, fontWeight: '900', marginTop: 2 },
-  dept: { fontSize: 13, fontWeight: '900', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 6 },
+  leaderName: { color: '#fff', fontFamily: font.display, fontSize: 26, marginTop: 2 },
+  deptHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 6 },
+  deptBar: { width: 5, height: 20, borderRadius: 3 },
+  dept: { fontFamily: font.display, fontSize: 22, color: colors.text },
   row: { backgroundColor: '#fff', borderRadius: radius.md, paddingVertical: 9, paddingHorizontal: 12, ...shadow },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rankDot: { minWidth: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   rankDotText: { color: '#fff', fontWeight: '900', fontSize: 15 },
   colorDot: { width: 14, height: 14, borderRadius: 7 },
-  percent: { fontSize: 17, fontWeight: '900', color: colors.text },
+  percent: { fontFamily: font.display, fontSize: 24, color: colors.text },
   track: { height: 5, borderRadius: 3, backgroundColor: colors.waitBg, marginTop: 7, overflow: 'hidden' },
   fill: { height: 5, borderRadius: 3 },
   note: { color: colors.muted, marginVertical: 12, lineHeight: 19, fontSize: 13 },
