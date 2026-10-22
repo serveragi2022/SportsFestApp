@@ -7,7 +7,7 @@ export function allMatches(game) {
   const out = [];
   game.rounds.forEach((round, roundIndex) => {
     round.matches.forEach((match) =>
-      out.push({ ...match, roundIndex, roundName: round.name, roundType: round.type, scoring: !!round.scoring, venue: match.venue || game.venue })
+      out.push({ ...match, roundIndex, roundName: round.name, roundType: round.type, scoring: !!round.scoring, timing: round.timing || null, venue: match.venue || game.venue })
     );
   });
   return out;

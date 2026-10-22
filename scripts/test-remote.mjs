@@ -126,4 +126,20 @@ c._ch.handlers[0][2](); c._ch.handlers[1][2]();
 await new Promise((res) => setTimeout(res, 400));
 assert.equal(fired, 1, 'debounced');
 unsub(); assert.ok(c._removed);
+// restoreAll: erase everything first, then write the backup (teams before the rows that point to them)
+{
+  const c2 = fakeClient(); const r2 = makeRemote(c2);
+  await r2.restoreAll({
+    masterTeams: [{ id: 'm1', name: 'Ambassador1', color: '#111', department: 'Admin' }],
+    rosters: { basketball: { 1: { masterId: 'm1', players: ['A'] } } },
+    results: { basketball: { 1: 1 } }, scores: {}, tiebreak: {},
+    committee: { basketball: { 'Tournament Head': 'Eagle' } }, times: { basketball: { 1: '9:20 - 10:00' } }, placements: {},
+  });
+  const inserts = c2.log.filter((x) => x.ops[0][0] === 'insert').map((x) => x.table);
+  assert.deepEqual(inserts, [TABLES.masters, TABLES.rosters, TABLES.results, TABLES.committee, TABLES.times]);
+  const firstInsert = c2.log.findIndex((x) => x.ops[0][0] === 'insert');
+  assert.ok(c2.log.slice(0, firstInsert).every((x) => x.ops[0][0] === 'delete'), 'everything is deleted before the first insert');
+  assert.deepEqual(c2.log[firstInsert].ops[0], ['insert', [{ id: 'm1', name: 'Ambassador1', color: '#111', department: 'Admin' }]]);
+}
+
 console.log('REMOTE TESTS PASSED');

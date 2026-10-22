@@ -4,7 +4,7 @@
 
 export const EVENTS = [
   { id: 'cheer-dance', name: 'Cheer Dance' },
-  { id: 'muse', name: 'Muse' },
+  { id: 'muse', name: 'Mr & Ms Team Ambassador' },
 ];
 
 export const EVENT_BY_ID = Object.fromEntries(EVENTS.map((e) => [e.id, e]));

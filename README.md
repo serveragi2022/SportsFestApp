@@ -61,6 +61,16 @@ No install needed; people just open a link (Safari/Chrome). On iPhone: Share > *
 Or from the terminal: `npm i -g vercel && vercel --prod`.
 Test locally: `npm run build:web && npx serve dist`.
 
+## Backup and restore (Admin > Backup and restore)
+- **Download backup** saves one `.json` file (on a phone: share sheet) with team names, teams of each game + players, winners and points,
+  tie-breaks, committee names, match times and Cheer Dance / Mr & Ms Team Ambassador places. Login accounts are not included (they live in Supabase Authentication).
+- **Restore** (from file on the web, or from pasted text) REPLACES all the current data with the backup. Download a backup of the current data first.
+- Tests: `node scripts/test-backup.mjs`.
+
+## Live board (`/live`)
+Rotates: **Standings** (all teams, split into pages only when the screen is too small), **Game progress** (round being played and matches done per game), **Champions**.
+All games run at the same time, so there is no "Up next" / "Ready to play" list.
+
 ## Security checklist (do before the event)
 What is already protected: the database itself decides who can write (row level security), not only the app. Guests can only read;
 a committee account can only write in its assigned games; only admins can create accounts, name teams, reset or delete.
@@ -119,10 +129,10 @@ Note: in the Excel, Mobile Legends Game 2 says "Team 1 vs Team 4", but Team 1 al
 - Only the admin can set team names and encode players (optional, one per line, max 10 per team). Players show under the team in the bracket and Teams tab.
 - After updating, run `supabase/schema.sql` again (adds the `players` column) and redeploy to Vercel.
 
-## Match times, WS/WD changes, Cheer Dance & Muse
+## Match times, WS/WD changes, Cheer Dance & Mr & Ms Team Ambassador
 - Admin can set/edit the time of every match (tap the time chip on the match card). Empty = default time. Stored in `sf_match_times`.
 - Badminton Women's Singles: 7 teams (Game 4 = Team 4 vs winner of Game 1). Women's Doubles: 6 teams, Round 1 Semi-Finals (Games 1-3), Round 2 Championship = round robin of the 3 winners (Games 4-6); points only break ties on wins.
-- Cheer Dance and Muse: encode the DEPARTMENT of 1st-8th place (100/75/60/50/40/30/20/10 points; no place = 0). Admin, or a committee account assigned to "Cheer Dance"/"Muse" in Accounts. The combined points of a team's department are only the FINAL tie-breaker of the overall ranking (percent first).
+- Cheer Dance and Mr & Ms Team Ambassador: encode the DEPARTMENT of 1st-8th place (100/75/60/50/40/30/20/10 points; no place = 0). Admin, or a committee account assigned to "Cheer Dance"/"Mr & Ms Team Ambassador" in Accounts. The combined points of a team's department are only the FINAL tie-breaker of the overall ranking (percent first).
 - After updating, run `supabase/schema.sql` again (new tables `sf_match_times`, `sf_placements`) and redeploy.
 
 ## Offline-safe encoding + My team

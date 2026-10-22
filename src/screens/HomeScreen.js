@@ -9,30 +9,25 @@ import MyTeamCard from '../components/MyTeamCard';
 import HeroBoard from '../components/HeroBoard';
 import { computeStandings, leadingTeams } from '../standings';
 import { useStore } from '../store';
-import { allMatches, gameProgress, getChampion, matchStatus, matchTeams } from '../engine';
-import TeamChip from '../components/TeamChip';
-import { Card, Chip, PressableScale, ProgressBar, SectionTitle } from '../components/ui';
+import { gameProgress, getChampion } from '../engine';
+import { Chip, PressableScale, ProgressBar, SectionTitle } from '../components/ui';
 import { colors, radius, shadow } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const { state, getTeam, offline, refreshing, refresh, syncError, matchTime, pending, retry } = useStore();
+  const { state, getTeam, offline, refreshing, refresh, syncError, pending, retry } = useStore();
 
-  const { totalDone, total, upNext, decided } = useMemo(() => {
+  const { totalDone, total, decided } = useMemo(() => {
     let d = 0;
     let t = 0;
     let champs = 0;
-    const next = [];
     GAMES.forEach((g) => {
       const results = state.results[g.id] || {};
       const p = gameProgress(g, results);
       d += p.done;
       t += p.total;
       if (getChampion(g, results, state.tiebreak[g.id], (state.scores && state.scores[g.id]) || {}).champion != null) champs += 1;
-      allMatches(g).forEach((m) => {
-        if (matchStatus(m, results) === 'ready') next.push({ game: g, match: m, teams: matchTeams(m, results) });
-      });
     });
-    return { totalDone: d, total: t, upNext: next.slice(0, 4), decided: champs };
+    return { totalDone: d, total: t, decided: champs };
   }, [state.results, state.tiebreak, state.scores]);
 
   const leaders = useMemo(() => leadingTeams(computeStandings(state)), [state]);
@@ -51,31 +46,6 @@ export default function HomeScreen({ navigation }) {
 
       <MyTeamCard navigation={navigation} />
 
-      {upNext.length > 0 && (
-        <View>
-          <SectionTitle>Ready to play</SectionTitle>
-          {upNext.map(({ game, match, teams }) => (
-            <PressableScale key={`${game.id}-${match.no}`} haptic={false} scaleTo={0.98} onPress={() => navigation.navigate('Game', { gameId: game.id })}>
-              <Card style={{ marginBottom: 8, paddingVertical: 12 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
-                    <GameIcon id={game.id} size={20} />
-                    <Text style={styles.nextTitle}>
-                      {game.short || game.name} · Game {match.no}
-                    </Text>
-                  </View>
-                  {matchTime(game.id, match) ? <Chip label={matchTime(game.id, match)} tone="info" /> : match.venue || game.venue ? <Chip label={match.venue || game.venue} /> : null}
-                </View>
-                <View style={{ marginTop: 8, gap: 6 }}>
-                  {teams.map((t, i) => (
-                    <TeamChip key={i} gameId={game.id} teamNo={t} compact />
-                  ))}
-                </View>
-              </Card>
-            </PressableScale>
-          ))}
-        </View>
-      )}
       <SectionTitle>All games</SectionTitle>
     </View>
   );
@@ -152,7 +122,6 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: 18 },
   heroTitle: { color: '#fff', fontSize: 26, fontWeight: '900' },
   heroSub: { color: '#DBEAFE', marginTop: 4, fontWeight: '600' },
-  nextTitle: { fontWeight: '800', color: colors.text, flexShrink: 1 },
   gameCard: { flex: 1, backgroundColor: '#fff', borderRadius: radius.lg, padding: 14, ...shadow },
   gameName: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 6, minHeight: 38 },
   gameMeta: { fontSize: 12, color: colors.muted, fontWeight: '600' },

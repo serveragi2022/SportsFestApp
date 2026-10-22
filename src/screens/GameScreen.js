@@ -1,6 +1,6 @@
-import React, { useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { GAME_BY_ID } from '../data/games';
+import { GAME_BY_ID, TIMING_FIELDS } from '../data/games';
 import { useStore } from '../store';
 import { eliminatedTeams, getChampion, gameProgress, matchStatus, matchTeams, robinStandings, slotLabel } from '../engine';
 import MatchCard from '../components/MatchCard';
@@ -151,6 +151,23 @@ function WinsTable({ game, roundIndex, results, scores }) {
   );
 }
 
+// Reference only (minutes): duration, prep, each quarter, half-time and time-out. Used by basketball.
+function TimingTable({ timing }) {
+  return (
+    <View style={styles.timing}>
+      <Text style={styles.timingTitle}>Game timing (minutes)</Text>
+      <View style={styles.timingGrid}>
+        {TIMING_FIELDS.map(([key, label]) => (
+          <View key={key} style={styles.timingCell}>
+            <Text style={styles.timingLabel} numberOfLines={1}>{label}</Text>
+            <Text style={[styles.timingValue, key === 'duration' && { color: colors.primary }]}>{timing[key]}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function MatchesTab({ game, results, scores }) {
   return (
     <View>
@@ -158,6 +175,7 @@ function MatchesTab({ game, results, scores }) {
       {game.rounds.map((round, ri) => (
         <View key={round.name}>
           <Text style={styles.roundTitle}>{round.name}</Text>
+          {round.timing ? <TimingTable timing={round.timing} /> : null}
           {round.matches.map((m) => (
             <MatchCard key={m.no} game={game} results={results} scores={scores} match={{ ...m, roundIndex: ri, roundName: round.name, roundType: round.type, scoring: !!round.scoring, venue: m.venue || game.venue }} />
           ))}
@@ -260,25 +278,61 @@ function TeamsTab({ game }) {
   );
 }
 
+// One committee / facilitator name. Saved when the field loses focus, on Enter, or with the Save button.
+// (onEndEditing is not fired by react-native-web, which is why names were not saved in the browser.)
+function RoleField({ gameId, role, name, canEdit }) {
+  const { setCommittee } = useStore();
+  const [value, setValue] = useState(name);
+  const [saved, setSaved] = useState(false);
+  const dirty = value !== name;
+
+  // follow changes that come from the server, unless the person is typing
+  useEffect(() => {
+    setValue(name);
+  }, [name]);
+
+  const save = () => {
+    if (!canEdit || value === name) return;
+    const ok = setCommittee(gameId, role, value.trim());
+    if (ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  return (
+    <Card style={{ marginBottom: 10 }}>
+      <Text style={styles.roleLabel}>{role}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <TextInput
+          value={value}
+          onChangeText={setValue}
+          onBlur={save}
+          onSubmitEditing={save}
+          returnKeyType="done"
+          editable={canEdit}
+          placeholder="Not assigned"
+          placeholderTextColor={colors.muted}
+          style={[styles.roleInput, { flex: 1 }]}
+        />
+        {canEdit && dirty ? <Button title="Save" small onPress={save} /> : null}
+        {saved && !dirty ? <Chip label="Saved" tone="success" /> : null}
+      </View>
+    </Card>
+  );
+}
+
 function CommitteeTab({ game }) {
-  const { getCommittee, setCommittee, isAdmin } = useStore();
+  const { getCommittee, isAdmin } = useStore();
   const rows = getCommittee(game.id);
   return (
     <View>
       {rows.map((r) => (
-        <Card key={r.role} style={{ marginBottom: 10 }}>
-          <Text style={styles.roleLabel}>{r.role}</Text>
-          <TextInput
-            defaultValue={r.name}
-            onEndEditing={(e) => setCommittee(game.id, r.role, e.nativeEvent.text)}
-            editable={isAdmin}
-            placeholder="Not assigned"
-            placeholderTextColor={colors.muted}
-            style={styles.roleInput}
-          />
-        </Card>
+        <RoleField key={r.role} gameId={game.id} role={r.role} name={r.name} canEdit={isAdmin} />
       ))}
-      {isAdmin ? <Text style={{ color: colors.muted, fontSize: 12 }}>Changes are saved automatically.</Text> : null}
+      <Text style={{ color: colors.muted, fontSize: 12 }}>
+        {isAdmin ? 'Type a name, then press Save (or Enter, or tap outside the box).' : 'Only the admin can change the committee. Sign in as admin in the Admin tab.'}
+      </Text>
     </View>
   );
 }
@@ -309,6 +363,12 @@ const styles = StyleSheet.create({
   nodeWait: { color: colors.muted, fontStyle: 'italic', fontSize: 12, paddingVertical: 6, paddingHorizontal: 4 },
   note: { color: colors.muted, marginBottom: 12, lineHeight: 19 },
   teamRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: radius.md, padding: 12, ...shadow },
+  timing: { backgroundColor: '#fff', borderRadius: radius.md, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
+  timingTitle: { fontSize: 12, fontWeight: '800', color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  timingGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  timingCell: { width: '25%', alignItems: 'center', paddingVertical: 6 },
+  timingLabel: { fontSize: 11, fontWeight: '700', color: colors.muted },
+  timingValue: { fontSize: 20, fontWeight: '900', color: colors.text, marginTop: 2 },
   roleLabel: { fontSize: 12, fontWeight: '800', color: colors.muted, marginBottom: 6, textTransform: 'uppercase' },
   roleInput: { fontSize: 16, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6 },
 });

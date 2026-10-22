@@ -79,7 +79,7 @@ function Root() {
         <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
         <Stack.Screen name="Game" component={GameScreen} options={{ title: 'Game' }} />
         <Stack.Screen name="Live" component={LiveBoardScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Event" component={EventScreen} options={({ route }) => ({ title: route.params.eventId === 'muse' ? 'Muse' : 'Cheer Dance' })} />
+        <Stack.Screen name="Event" component={EventScreen} options={({ route }) => ({ title: route.params.eventId === 'muse' ? 'Mr & Ms Team Ambassador' : 'Cheer Dance' })} />
         <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: 'Accounts' }} />
       </Stack.Navigator>
     </NavigationContainer>

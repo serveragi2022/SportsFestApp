@@ -25,6 +25,7 @@ export const TABLES = {
 };
 
 import { sortTeams } from './data/departments.js';
+import { dataToRows } from './backup.js';
 
 export const ADMIN_FUNCTION = 'sf-admin';
 
@@ -274,6 +275,22 @@ export function makeRemote(client) {
       await db(TABLES.placements).delete().neq('event_id', '');
       check(await db(TABLES.rosters).delete().neq('game_id', ''));
       check(await db(TABLES.masters).delete().not('id', 'is', null));
+    },
+
+    // Restore a backup (admin only): everything is erased, then the backup rows are written back (teams first).
+    async restoreAll(data) {
+      const rows = dataToRows(data);
+      await this.resetEverything();
+      const insert = async (table, list) => {
+        if (list.length) check(await db(table).insert(list));
+      };
+      await insert(TABLES.masters, rows.masters);
+      await insert(TABLES.rosters, rows.rosters);
+      await insert(TABLES.results, rows.results);
+      await insert(TABLES.tiebreak, rows.tiebreak);
+      await insert(TABLES.committee, rows.committee);
+      await insert(TABLES.times, rows.times);
+      await insert(TABLES.placements, rows.placements);
     },
 
     // Legacy: calls onChange (debounced) whenever any Sports Fest table changes. Kept for backward compatibility.

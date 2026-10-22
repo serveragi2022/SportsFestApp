@@ -11,15 +11,21 @@ const W = (g) => ({ w: g });
 
 const m = (no, slots, extra = {}) => ({ no, slots, ...extra });
 
+// Times + game timing taken from the latest basketball schedule sheet.
 const basketballTimes = {
-  1: '8:25 - 9:00',
-  2: '9:00 - 9:35',
-  3: '9:35 - 10:10',
-  4: '10:10 - 10:45',
-  5: '10:45 - 11:30',
-  6: '11:30 - 12:15',
-  7: '2:30 - 3:33',
+  1: '9:20 - 10:00',
+  2: '10:00 - 10:40',
+  3: '10:40 - 11:20',
+  4: '11:20 - 12:00',
+  5: '1:30 - 2:10',
+  6: '2:10 - 2:50',
+  7: '3:20 - 4:30',
 };
+
+// Basketball game timing in MINUTES (reference only). Shown on the game screen under each round.
+// Rounds 1 and 2: 5 prep + 4 x 5 quarters + 5 half-time + 8 time-out = 38.  Championship: 60.
+const BB_TIMING_REGULAR = { duration: 38, prep: 5, q1: 5, q2: 5, half: 5, q3: 5, q4: 5, timeout: 8 };
+const BB_TIMING_FINAL = { duration: 60, prep: 5, q1: 10, q2: 10, half: 7, q3: 10, q4: 10, timeout: 8 };
 const bb = (no, slots) => m(no, slots, { time: basketballTimes[no] });
 
 export const GAMES = [
@@ -28,9 +34,9 @@ export const GAMES = [
     name: 'Basketball',
     teams: 8,
     rounds: [
-      { name: 'Round 1: Qualifying Round', type: 'elim', matches: [bb(1, [T(1), T(5)]), bb(2, [T(2), T(6)]), bb(3, [T(3), T(7)]), bb(4, [T(4), T(8)])] },
-      { name: 'Round 2: Semi-Finals', type: 'elim', matches: [bb(5, [W(1), W(2)]), bb(6, [W(3), W(4)])] },
-      { name: 'Round 3: Championship', type: 'elim', matches: [bb(7, [W(5), W(6)])] },
+      { name: 'Round 1: Qualifying Round', type: 'elim', timing: BB_TIMING_REGULAR, matches: [bb(1, [T(1), T(5)]), bb(2, [T(2), T(6)]), bb(3, [T(3), T(7)]), bb(4, [T(4), T(8)])] },
+      { name: 'Round 2: Semi-Finals', type: 'elim', timing: BB_TIMING_REGULAR, matches: [bb(5, [W(1), W(2)]), bb(6, [W(3), W(4)])] },
+      { name: 'Round 3: Championship', type: 'elim', timing: BB_TIMING_FINAL, matches: [bb(7, [W(5), W(6)])] },
     ],
     committee: [
       ['Tournament Head', 'Eagle Aurellana'],
@@ -261,6 +267,18 @@ export const GAMES = [
       ['Scorekeeper / Results Recorder', 'S. Obordo'],
     ],
   },
+];
+
+// Labels of the basketball timing table, in display order.
+export const TIMING_FIELDS = [
+  ['duration', 'Duration'],
+  ['prep', 'Prep-Time'],
+  ['q1', 'Q1'],
+  ['q2', 'Q2'],
+  ['half', 'Half-Time'],
+  ['q3', 'Q3'],
+  ['q4', 'Q4'],
+  ['timeout', 'Time-Out'],
 ];
 
 export const GAME_BY_ID = Object.fromEntries(GAMES.map((g) => [g.id, g]));

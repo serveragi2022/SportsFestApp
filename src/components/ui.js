@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Animated, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -135,7 +135,13 @@ export function Segmented({ options, value, onChange }) {
 
 // Bottom-sheet style list picker.
 // options: [{ key, label, sub?, color?, disabled? }]
+// The list has an EXPLICIT height (max 60% of the window). A bare maxHeight does not make a list scroll
+// inside a modal on the web, which hid every team after the first few ones.
+const OPTION_HEIGHT = 58;
 export function PickerModal({ visible, title, options, onSelect, onClose, footer }) {
+  const { height: windowHeight } = useWindowDimensions();
+  const maxListHeight = Math.max(180, Math.min(480, Math.round(windowHeight * 0.6)));
+  const listHeight = Math.min(maxListHeight, Math.max(options.length, 1) * OPTION_HEIGHT);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -147,13 +153,11 @@ export function PickerModal({ visible, title, options, onSelect, onClose, footer
               <Text style={styles.sheetClose}>Close</Text>
             </Pressable>
           </View>
-          <FlatList
-            data={options}
-            keyExtractor={(o) => String(o.key)}
-            style={{ maxHeight: 420 }}
-            ListEmptyComponent={<Text style={styles.empty}>Nothing to choose from yet.</Text>}
-            renderItem={({ item }) => (
+          <ScrollView style={[{ height: listHeight }, Platform.OS === 'web' && { overflowY: 'auto' }]} nestedScrollEnabled keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+            {options.length === 0 ? <Text style={styles.empty}>Nothing to choose from yet.</Text> : null}
+            {options.map((item) => (
               <Pressable
+                key={String(item.key)}
                 disabled={item.disabled}
                 onPress={() => onSelect(item)}
                 style={({ pressed }) => [styles.option, pressed && { backgroundColor: colors.waitBg }, item.disabled && { opacity: 0.4 }]}
@@ -164,8 +168,8 @@ export function PickerModal({ visible, title, options, onSelect, onClose, footer
                   {item.sub ? <Text style={styles.optSub}>{item.sub}</Text> : null}
                 </View>
               </Pressable>
-            )}
-          />
+            ))}
+          </ScrollView>
           {footer}
         </SafeAreaView>
       </View>
@@ -223,7 +227,7 @@ export const styles = StyleSheet.create({
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12 },
   sheetTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
   sheetClose: { color: colors.primary, fontWeight: '700' },
-  option: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  option: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, minHeight: 58, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   optDot: { width: 14, height: 14, borderRadius: 7, marginRight: 12 },
   optLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
   optSub: { fontSize: 12, color: colors.muted, marginTop: 2 },

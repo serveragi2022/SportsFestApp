@@ -56,7 +56,7 @@ function TeamRow({ r, rank, showDept, open, onToggle }) {
             <Text style={styles.sub}>
               {r.gamesWon} {r.gamesWon === 1 ? 'game' : 'games'} won · {r.gamesJoined} {r.gamesJoined === 1 ? 'game' : 'games'} joined
             </Text>
-            {r.tiePoints > 0 ? <Text style={styles.sub}>Cheer Dance + Muse points of {r.department}: {r.tiePoints} (tie-breaker only)</Text> : null}
+            {r.tiePoints > 0 ? <Text style={styles.sub}>Cheer Dance + Mr & Ms Team Ambassador points of {r.department}: {r.tiePoints} (tie-breaker only)</Text> : null}
             {r.games.length === 0 ? <Text style={styles.slotWl}>Not in any game yet.</Text> : null}
             {r.games.map(({ game, slots }) => (
               <View key={game.id} style={styles.gameBlock}>

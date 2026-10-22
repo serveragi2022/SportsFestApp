@@ -6,6 +6,7 @@ import { Alert } from '../dialog';
 import { useStore } from '../store';
 import { emailToUsername } from '../permissions';
 import GameIcon from '../components/GameIcon';
+import BackupCard from '../components/BackupCard';
 import { Button, Card, Chip, FilterChip, PickerModal, SectionTitle, TextPromptModal } from '../components/ui';
 import { colors, radius } from '../theme';
 
@@ -180,6 +181,9 @@ function AdminTools({ navigation }) {
           </View>
         </Card>
       ))}
+
+      <SectionTitle>Backup and restore</SectionTitle>
+      <BackupCard />
 
       <SectionTitle>Reset</SectionTitle>
       <View style={{ gap: 12 }}>

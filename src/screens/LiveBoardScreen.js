@@ -3,20 +3,27 @@ import { Animated, Pressable, StyleSheet, Text, useWindowDimensions, View } from
 import { Ionicons } from '@expo/vector-icons';
 import { GAMES } from '../data/games';
 import { deptColor } from '../data/departments';
-import { allMatches, getChampion, matchStatus, matchTeams } from '../engine';
+import { gameProgress, getChampion } from '../engine';
 import { computeStandings, rankByPercent } from '../standings';
 import { useStore } from '../store';
 import GameIcon, { Trophy } from '../components/GameIcon';
 import { font } from '../fonts';
 import { colors } from '../theme';
 
-const PANELS = ['Standings', 'Up next', 'Champions'];
 const SECONDS = 10;
 
-// Full-screen board for a TV / projector. Rotates: Standings, Up next, Champions. Tap = next panel.
+// Split a list into pages of nearly the same size (17 teams on 2 pages -> 9 + 8, not 16 + 1).
+function chunkEven(list, perPage) {
+  const pages = Math.max(1, Math.ceil(list.length / perPage));
+  const size = Math.ceil(list.length / pages);
+  return Array.from({ length: pages }, (_, i) => list.slice(i * size, (i + 1) * size));
+}
+
+// Full-screen board for a TV / projector. Rotates: Standings (ALL teams, on several pages if the screen is small),
+// Game progress, Champions. All games run at the same time, so there is no "Up next" panel. Tap = next panel.
 // On the web it is also at /live.
 export default function LiveBoardScreen({ navigation }) {
-  const { state, getTeam, matchTime } = useStore();
+  const { state, getTeam } = useStore();
   const { width, height } = useWindowDimensions();
   const u = Math.max(0.62, Math.min(width / 900, height / 600, 2.4)); // everything scales with the screen
   const T = (n) => ({ fontSize: s(n), lineHeight: s(Math.round(n * 1.1)) });
@@ -26,10 +33,30 @@ export default function LiveBoardScreen({ navigation }) {
   const [now, setNow] = useState(new Date());
   const fade = useRef(new Animated.Value(1)).current;
 
+  const ranked = useMemo(() => rankByPercent(computeStandings(state)), [state]);
+  const anyWon = ranked.some((r) => r.percent > 0);
+
+  // How many team rows fit: 2 columns on a wide screen, rows at least s(40) high.
+  const cols = width >= 700 ? 2 : 1;
+  const listHeight = height - s(190);
+  const rowsPerCol = Math.max(3, Math.floor(listHeight / (s(40) + s(3))));
+  const pages = useMemo(() => chunkEven(ranked, rowsPerCol * cols), [ranked, rowsPerCol, cols]);
+
+  const slides = useMemo(
+    () => [
+      ...pages.map((rows, i) => ({ key: `standings-${i}`, kind: 'standings', title: pages.length > 1 ? `Standings ${i + 1}/${pages.length}` : 'Standings', rows })),
+      { key: 'progress', kind: 'progress', title: 'Game progress' },
+      { key: 'champions', kind: 'champions', title: 'Champions' },
+    ],
+    [pages]
+  );
+  const slide = slides[index % slides.length];
+  const next = () => setIndex((i) => (i + 1) % slides.length);
+
   useEffect(() => {
-    const t = setInterval(() => setIndex((i) => (i + 1) % PANELS.length), SECONDS * 1000);
+    const t = setInterval(() => setIndex((i) => (i + 1) % slides.length), SECONDS * 1000);
     return () => clearInterval(t);
-  }, [index]); // restarts after a manual tap
+  }, [index, slides.length]); // restarts after a manual tap
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 20000);
     return () => clearInterval(t);
@@ -39,19 +66,19 @@ export default function LiveBoardScreen({ navigation }) {
     Animated.timing(fade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
   }, [index, fade]);
 
-  const ranked = useMemo(() => rankByPercent(computeStandings(state)), [state]);
-  const anyWon = ranked.some((r) => r.percent > 0);
-
-  const ready = useMemo(() => {
-    const out = [];
-    GAMES.forEach((g) => {
-      const results = state.results[g.id] || {};
-      allMatches(g).forEach((m) => {
-        if (matchStatus(m, results) === 'ready') out.push({ game: g, match: m, teams: matchTeams(m, results) });
-      });
-    });
-    return out.slice(0, 6);
-  }, [state.results]);
+  // one tile per game: the round being played now + matches done
+  const progress = useMemo(
+    () =>
+      GAMES.map((g) => {
+        const results = state.results[g.id] || {};
+        const p = gameProgress(g, results);
+        const c = getChampion(g, results, state.tiebreak[g.id], (state.scores && state.scores[g.id]) || {}).champion;
+        const round = g.rounds.find((r) => r.matches.some((m) => results[m.no] == null));
+        const roundName = c != null ? 'Completed' : round ? round.name.replace(/^Round \d+: /, '') : 'Waiting for the champion';
+        return { game: g, done: p.done, total: p.total, roundName, champion: c != null ? getTeam(g.id, c) : null };
+      }),
+    [state, getTeam]
+  );
 
   const champs = useMemo(
     () =>
@@ -63,9 +90,26 @@ export default function LiveBoardScreen({ navigation }) {
   );
 
   const clock = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const twoCols = cols === 2;
+
+  // one team row of the standings
+  const renderRow = (r) => (
+    <View key={r.key} style={[styles.row, { gap: s(10), minHeight: s(40) }]}>
+      <Text style={[styles.rank, T(30), { width: s(40), color: anyWon && r.rank === 1 && r.percent > 0 ? colors.gold : '#64748B' }]}>{anyWon && r.percent > 0 ? r.rank : '–'}</Text>
+      <View style={{ width: s(6), alignSelf: 'stretch', borderRadius: 4, backgroundColor: deptColor(r.department), marginVertical: s(6) }} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[styles.name, T(twoCols ? 24 : 32)]} numberOfLines={1}>{r.name}</Text>
+        <Text style={[styles.dept, T(11)]} numberOfLines={1}>{r.department || 'No department'}</Text>
+      </View>
+      <View style={[styles.track, { height: s(14), borderRadius: s(7) }, twoCols ? { width: s(80) } : { flex: 1 }]}>
+        <View style={{ width: `${r.percent}%`, height: '100%', borderRadius: s(7), backgroundColor: deptColor(r.department) }} />
+      </View>
+      <Text style={[styles.percent, T(30), { width: s(twoCols ? 78 : 100) }, r.percent === 0 && { color: '#475569' }]}>{r.percent}%</Text>
+    </View>
+  );
 
   return (
-    <Pressable style={styles.screen} onPress={() => setIndex((i) => (i + 1) % PANELS.length)}>
+    <Pressable style={styles.screen} onPress={next}>
       <View style={[styles.header, { paddingHorizontal: s(28), paddingTop: s(22), paddingBottom: s(8) }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(12) }}>
           <View style={[styles.liveDot, { width: s(12), height: s(12), borderRadius: s(6) }]} />
@@ -80,63 +124,41 @@ export default function LiveBoardScreen({ navigation }) {
       </View>
 
       <Animated.View style={{ flex: 1, opacity: fade, paddingHorizontal: s(28), paddingBottom: s(8) }}>
-        <Text style={[styles.panelTitle, T(46)]}>{PANELS[index]}</Text>
+        <Text style={[styles.panelTitle, T(40)]}>{slide.title}</Text>
 
-        {index === 0 ? (
-          <View style={{ flex: 1, marginTop: s(10), gap: s(6) }}>
-            {ranked.slice(0, 8).map((r) => (
-              <View key={r.key} style={[styles.row, { gap: s(14) }]}>
-                <Text style={[styles.rank, T(40), { width: s(54), color: anyWon && r.rank === 1 && r.percent > 0 ? colors.gold : '#64748B' }]}>{anyWon && r.percent > 0 ? r.rank : '–'}</Text>
-                <View style={{ width: s(7), alignSelf: 'stretch', borderRadius: 4, backgroundColor: deptColor(r.department), marginVertical: s(8) }} />
-                <View style={{ width: s(330) }}>
-                  <Text style={[styles.name, T(34)]} numberOfLines={1}>{r.name}</Text>
-                  <Text style={[styles.dept, T(13)]} numberOfLines={1}>{r.department || 'No department'}</Text>
-                </View>
-                <View style={[styles.track, { height: s(18), borderRadius: s(9) }]}>
-                  <View style={{ width: `${r.percent}%`, height: '100%', borderRadius: s(9), backgroundColor: deptColor(r.department) }} />
-                </View>
-                <Text style={[styles.percent, T(38), { width: s(110) }, r.percent === 0 && { color: '#475569' }]}>{r.percent}%</Text>
+        {slide.kind === 'standings' ? (
+          <View style={{ flex: 1, marginTop: s(8), flexDirection: 'row', gap: s(16) }}>
+            {chunkEven(slide.rows, Math.ceil(slide.rows.length / cols)).map((col, ci) => (
+              <View key={ci} style={{ flex: 1, gap: s(3) }}>
+                {col.map(renderRow)}
               </View>
             ))}
           </View>
         ) : null}
 
-        {index === 1 ? (
-          ready.length ? (
-            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: s(14), marginTop: s(10), alignContent: 'flex-start' }}>
-              {ready.map(({ game, match, teams }) => {
-                const time = matchTime(game.id, match);
-                return (
-                  <View key={`${game.id}-${match.no}`} style={[styles.card, { width: width > 700 ? '48.6%' : '100%', padding: s(12) }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(10) }}>
-                      <GameIcon id={game.id} size={s(30)} color="#93C5FD" />
-                      <Text style={[styles.cardGame, T(24)]} numberOfLines={1}>{game.short || game.name} · Game {match.no}</Text>
-                      <View style={{ flex: 1 }} />
-                      {time ? <Text style={[styles.time, T(24)]}>{time}</Text> : null}
-                    </View>
-                    {teams.map((t, i) => {
-                      const info = getTeam(game.id, t);
-                      return (
-                        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: s(10), marginTop: s(4) }}>
-                          <View style={{ width: s(6), height: s(22), borderRadius: 3, backgroundColor: deptColor(info.department) }} />
-                          <Text style={[styles.name, T(26)]} numberOfLines={1}>{info.name || `Team ${t}`}</Text>
-                          {info.department ? <Text style={[styles.dept, { fontSize: s(15) }]}>{info.department}</Text> : null}
-                        </View>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={styles.center}>
-              <Text style={[styles.empty, { fontSize: s(40) }]}>No game is ready right now</Text>
-              <Text style={[styles.dept, { fontSize: s(20), marginTop: s(8) }]}>The next games start when the winners are known.</Text>
-            </View>
-          )
+        {slide.kind === 'progress' ? (
+          <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: s(12), marginTop: s(10), alignContent: 'flex-start' }}>
+            {progress.map(({ game, done, total, roundName, champion }) => (
+              <View key={game.id} style={[styles.tile, { width: width > 700 ? '31.8%' : '48%', padding: s(12), borderTopColor: champion ? colors.gold : '#2F5BE0' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(8) }}>
+                  <GameIcon id={game.id} size={s(22)} color={champion ? colors.gold : '#93C5FD'} />
+                  <Text style={[styles.cardGame, { fontSize: s(18) }]} numberOfLines={1}>{game.short || game.name}</Text>
+                </View>
+                {champion ? (
+                  <Text style={[styles.name, { fontSize: s(26), marginTop: s(4) }]} numberOfLines={1}>{champion.name || `Team ${champion.no}`}</Text>
+                ) : (
+                  <Text style={[styles.time, { fontSize: s(20), marginTop: s(4) }]} numberOfLines={1}>{roundName}</Text>
+                )}
+                <View style={[styles.track, { height: s(10), borderRadius: s(5), marginTop: s(6), flex: 0 }]}>
+                  <View style={{ width: `${total ? Math.round((done / total) * 100) : 0}%`, height: '100%', borderRadius: s(5), backgroundColor: champion ? colors.gold : '#2F5BE0' }} />
+                </View>
+                <Text style={[styles.dept, { fontSize: s(14), marginTop: s(4) }]}>{done}/{total} matches{champion ? ' · Champion' : ''}</Text>
+              </View>
+            ))}
+          </View>
         ) : null}
 
-        {index === 2 ? (
+        {slide.kind === 'champions' ? (
           <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: s(12), marginTop: s(10), alignContent: 'flex-start' }}>
             {champs.map(({ game, info }) => (
               <View key={game.id} style={[styles.tile, { width: width > 700 ? '31.8%' : '48%', padding: s(14), borderTopColor: info ? deptColor(info.department) : '#1E293B' }]}>
@@ -159,8 +181,8 @@ export default function LiveBoardScreen({ navigation }) {
       </Animated.View>
 
       <View style={[styles.footer, { paddingBottom: s(16), gap: s(10) }]}>
-        {PANELS.map((p, i) => (
-          <View key={p} style={{ width: i === index ? s(34) : s(10), height: s(6), borderRadius: 3, backgroundColor: i === index ? colors.gold : '#334155' }} />
+        {slides.map((p, i) => (
+          <View key={p.key} style={{ width: i === index % slides.length ? s(34) : s(10), height: s(6), borderRadius: 3, backgroundColor: i === index % slides.length ? colors.gold : '#334155' }} />
         ))}
       </View>
     </Pressable>
@@ -175,13 +197,12 @@ const styles = StyleSheet.create({
   clock: { color: '#fff', fontFamily: font.display },
   close: { padding: 4 },
   panelTitle: { color: '#fff', fontFamily: font.display },
-  row: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, paddingRight: 12, maxHeight: 96, overflow: 'hidden' },
+  row: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, paddingRight: 10, maxHeight: 96, overflow: 'hidden' },
   rank: { fontFamily: font.display, textAlign: 'center' },
   name: { color: '#fff', fontFamily: font.display, flexShrink: 1 },
   dept: { color: '#94A3B8', fontWeight: '700' },
   track: { flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   percent: { color: colors.gold, fontFamily: font.display, textAlign: 'right' },
-  card: { backgroundColor: colors.night2, borderRadius: 14 },
   cardGame: { color: '#E2E8F0', fontFamily: font.bold, flexShrink: 1 },
   time: { color: colors.gold, fontFamily: font.display },
   tile: { backgroundColor: colors.night2, borderRadius: 12, borderTopWidth: 5 },

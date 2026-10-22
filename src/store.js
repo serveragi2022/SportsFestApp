@@ -8,6 +8,7 @@ import { makeRemote, TABLES } from './remote';
 import { createOutbox, isRetryableError } from './outbox';
 import { can, GUEST, loginToEmail } from './permissions';
 import { DEFAULT_TEAMS, sortTeams } from './data/departments';
+import { emptyData } from './backup';
 
 let NetInfo = null;
 try {
@@ -58,6 +59,10 @@ function reducer(state, action) {
     case 'LOAD':
       const next = { ...initialState, ...action.state };
       return { ...next, masterTeams: sortTeams(next.masterTeams || []) };
+
+    // replaces EVERYTHING with a backup (the backup's own team names, not the default ones)
+    case 'RESTORE':
+      return { ...emptyData(), ...action.state, masterTeams: sortTeams(action.state.masterTeams || []) };
 
     case 'SET_RESULT': {
       const { gameId, matchNo, team, scores } = action;
@@ -576,6 +581,8 @@ export function StoreProvider({ children }) {
       resetGame: (gameId) => run({ type: 'RESET_GAME', gameId }, ['resetGame', gameId], 'admin'),
       resetAllResults: () => run({ type: 'RESET_ALL_RESULTS' }, ['resetAllResults'], 'admin'),
       resetEverything: () => run({ type: 'RESET_EVERYTHING' }, ['resetEverything'], 'admin'),
+      // admin only: replace all data with a backup (see src/backup.js)
+      restoreBackup: (data) => run({ type: 'RESTORE', state: data }, ['restoreAll', data], 'admin'),
     }),
     [run]
   );
