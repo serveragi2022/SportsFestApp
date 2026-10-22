@@ -11,15 +11,15 @@ const W = (g) => ({ w: g });
 
 const m = (no, slots, extra = {}) => ({ no, slots, ...extra });
 
-// Times + game timing taken from the latest basketball schedule sheet.
+// Default match times are cleared; fill in per game number when the schedule is final.
 const basketballTimes = {
-  1: '9:20 - 10:00',
-  2: '10:00 - 10:40',
-  3: '10:40 - 11:20',
-  4: '11:20 - 12:00',
-  5: '1:30 - 2:10',
-  6: '2:10 - 2:50',
-  7: '3:20 - 4:30',
+  1: '',
+  2: '',
+  3: '',
+  4: '',
+  5: '',
+  6: '',
+  7: '',
 };
 
 // Basketball game timing in MINUTES (reference only). Shown on the game screen under each round.
@@ -39,12 +39,12 @@ export const GAMES = [
       { name: 'Round 3: Championship', type: 'elim', timing: BB_TIMING_FINAL, matches: [bb(7, [W(5), W(6)])] },
     ],
     committee: [
-      ['Tournament Head', 'Eagle Aurellana'],
-      ['Referees (per game)', 'SG Tomaquin / SG Bugia'],
-      ['Table Officials / Scorers', 'SG Dia / Charlie Caldito'],
-      ['Timekeeper', 'Jayric Sardea'],
-      ['Scoreboard Operator', 'SG Mauro'],
-      ['Medical / First Aid (shared)', 'April'],
+      ['Tournament Head', ''],
+      ['Referees (per game)', ''],
+      ['Table Officials / Scorers', ''],
+      ['Timekeeper', ''],
+      ['Scoreboard Operator', ''],
+      ['Medical / First Aid (shared)', ''],
     ],
   },
   {
@@ -60,9 +60,9 @@ export const GAMES = [
       { name: 'Round 3: Championship', type: 'elim', matches: [m(6, [W(4), W(5)])] },
     ],
     committee: [
-      ['Tournament Head', 'Nicko Mantuano'],
-      ['Umpire / Scorer', 'Rose Creag'],
-      ['Line Judges', 'Melvin / Khristalline'],
+      ['Tournament Head', ''],
+      ['Umpire / Scorer', ''],
+      ['Line Judges', ''],
     ],
   },
   {
@@ -76,9 +76,9 @@ export const GAMES = [
       { name: 'Round 3: Championship', type: 'elim', matches: [m(3, [W(1), W(2)])] },
     ],
     committee: [
-      ['Tournament Head', 'Nicko Mantuano'],
-      ['Umpire / Scorer', 'Rose Creag'],
-      ['Line Judges', 'Melvin / Khristalline'],
+      ['Tournament Head', ''],
+      ['Umpire / Scorer', ''],
+      ['Line Judges', ''],
     ],
   },
   {
@@ -91,20 +91,20 @@ export const GAMES = [
       {
         name: 'Round 1: Semi-Finals',
         type: 'elim',
-        matches: [m(1, [T(1), T(2)], { time: '8:00 - 8:30' }), m(2, [T(3), T(4)], { time: '8:30 - 9:00' }), m(3, [T(5), T(6)], { time: '9:00 - 9:30' })],
+        matches: [m(1, [T(1), T(2)], { time: '' }), m(2, [T(3), T(4)], { time: '' }), m(3, [T(5), T(6)], { time: '' })],
       },
       // Championship = round robin of the 3 semi-final winners. Points are only used when the wins are level.
       {
         name: 'Round 2: Championship (Round Robin)',
         type: 'robin',
         scoring: true,
-        matches: [m(4, [W(1), W(2)], { time: '9:30 - 10:00' }), m(5, [W(3), W(2)], { time: '10:00 - 10:30' }), m(6, [W(1), W(3)], { time: '10:30 - 11:00' })],
+        matches: [m(4, [W(1), W(2)], { time: '' }), m(5, [W(3), W(2)], { time: '' }), m(6, [W(1), W(3)], { time: '' })],
       },
     ],
     committee: [
-      ['Tournament Head', 'Nicko Mantuano'],
+      ['Tournament Head', ''],
       ['Umpire / Scorer', ''],
-      ['Line Judges', 'Renzo Euraba / Kineth Sia'],
+      ['Line Judges', ''],
     ],
   },
   {
@@ -119,9 +119,9 @@ export const GAMES = [
       { name: 'Round 3: Championship', type: 'elim', matches: [m(4, [W(2), W(3)])] },
     ],
     committee: [
-      ['Tournament Head', 'Nicko Mantuano'],
+      ['Tournament Head', ''],
       ['Umpire / Scorer', ''],
-      ['Line Judges', 'Renzo Euraba / Kineth Sia'],
+      ['Line Judges', ''],
     ],
   },
   {
@@ -134,10 +134,10 @@ export const GAMES = [
       { name: 'Round 1: Round Robin', type: 'robin', scoring: true, matches: [m(1, [T(1), T(2)]), m(2, [T(2), T(3)]), m(3, [T(1), T(3)])] },
     ],
     committee: [
-      ['Tournament Head', 'E. Arevalo'],
-      ['Umpire / Scorer', 'Jeremie'],
-      ['Line Judges', 'Neil Puda / John Kerby Galipot'],
-      ['Medical / First Aid (shared)', 'Gil Famenia'],
+      ['Tournament Head', ''],
+      ['Umpire / Scorer', ''],
+      ['Line Judges', ''],
+      ['Medical / First Aid (shared)', ''],
     ],
   },
   {
@@ -150,10 +150,10 @@ export const GAMES = [
       { name: 'Round 1: Championship', type: 'elim', scoring: true, matches: [m(1, [T(1), T(2)])] },
     ],
     committee: [
-      ['Tournament Head', 'E. Arevalo'],
-      ['Umpire / Scorer', 'Jeremie'],
-      ['Line Judges', 'Neil Puda / John Kerby Galipot'],
-      ['Medical / First Aid (shared)', 'Gil Famenia'],
+      ['Tournament Head', ''],
+      ['Umpire / Scorer', ''],
+      ['Line Judges', ''],
+      ['Medical / First Aid (shared)', ''],
     ],
   },
   {
@@ -177,7 +177,7 @@ export const GAMES = [
     ],
     committee: [
       ['Chess Arbiter / Game Official', ''],
-      ['Scorekeeper / Results Recorder', 'J. Sarmiento'],
+      ['Scorekeeper / Results Recorder', ''],
     ],
   },
   {
@@ -195,7 +195,7 @@ export const GAMES = [
     ],
     committee: [
       ['Game Official', ''],
-      ['Scorekeeper / Results Recorder', 'John Lloyd Jimenez'],
+      ['Scorekeeper / Results Recorder', ''],
     ],
   },
   {
@@ -210,8 +210,8 @@ export const GAMES = [
       { name: 'Round 3: Championship', type: 'elim', matches: [m(4, [W(2), W(3)])] },
     ],
     committee: [
-      ['Game Facilitator / Umpire', 'Kathleen Valdez'],
-      ['Scorekeeper / Recorder', 'Feds Custodio'],
+      ['Game Facilitator / Umpire', ''],
+      ['Scorekeeper / Recorder', ''],
     ],
   },
   {
@@ -240,8 +240,8 @@ export const GAMES = [
       { name: 'Round 4: Championship (Round Robin)', type: 'robin', scoring: true, matches: [m(11, [W(8), W(9)]), m(12, [W(9), W(10)]), m(13, [W(10), W(8)])] },
     ],
     committee: [
-      ['Game Official', 'Shiela'],
-      ['Scorekeeper / Results Recorder', 'D. Husain'],
+      ['Game Official', ''],
+      ['Scorekeeper / Results Recorder', ''],
     ],
   },
   {
@@ -264,7 +264,7 @@ export const GAMES = [
     ],
     committee: [
       ['Game Official', ''],
-      ['Scorekeeper / Results Recorder', 'S. Obordo'],
+      ['Scorekeeper / Results Recorder', ''],
     ],
   },
 ];
