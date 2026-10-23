@@ -591,12 +591,36 @@ export function StoreProvider({ children }) {
   const signIn = useCallback(async (login, password) => {
     if (!supabase) return 'Supabase is not set up.';
     const { error } = await supabase.auth.signInWithPassword({ email: loginToEmail(login), password });
-    if (!error) return null;
-    return /invalid login/i.test(error.message) ? 'Wrong username or password.' : error.message;
+    if (!error) {
+      remote.logAudit('login'); // audit trail: who signed in, and when
+      return null;
+    }
+    if (/invalid login/i.test(error.message)) {
+      remote.logLoginFailed(login); // audit trail: a wrong username / password
+      return 'Wrong username or password.';
+    }
+    return error.message;
   }, []);
 
   const signOut = useCallback(async () => {
-    if (supabase) await supabase.auth.signOut();
+    if (!supabase) return;
+    if (sessionRef.current) await remote.logAudit('logout');
+    await supabase.auth.signOut();
+  }, []);
+
+  // The signed-in person changes their OWN password (committee and admin). The current password is asked again first.
+  // Returns null when done, or a message to show.
+  const changePassword = useCallback(async (current, next) => {
+    const s = sessionRef.current;
+    if (!supabase || !s) return 'Please sign in first.';
+    if (String(next || '').length < 8) return 'The new password needs at least 8 characters.';
+    if (next === current) return 'The new password must be different from the current one.';
+    const again = await supabase.auth.signInWithPassword({ email: s.user.email, password: current });
+    if (again.error) return /invalid login/i.test(again.error.message) ? 'The current password is wrong.' : again.error.message;
+    const { error } = await supabase.auth.updateUser({ password: next });
+    if (error) return error.message;
+    remote.logAudit('password.change');
+    return null;
   }, []);
 
   // shown time of a match: the admin's time, else the default one of the app
@@ -626,12 +650,13 @@ export function StoreProvider({ children }) {
       refresh,
       signIn,
       signOut,
+      changePassword,
       getTeam,
       getCommittee,
       matchTime,
       ...actions,
     }),
-    [state, loaded, access, isAdmin, isStaff, canEditGame, session, syncError, offline, refreshing, pending, retry, myTeam, setMyTeam, refresh, signIn, signOut, getTeam, getCommittee, matchTime, actions]
+    [state, loaded, access, isAdmin, isStaff, canEditGame, session, syncError, offline, refreshing, pending, retry, myTeam, setMyTeam, refresh, signIn, signOut, changePassword, getTeam, getCommittee, matchTime, actions]
   );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

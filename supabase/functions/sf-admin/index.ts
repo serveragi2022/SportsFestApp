@@ -54,6 +54,16 @@ const deps = {
     must({ error });
     return !!data;
   },
+  async staffInfo(userId: string) {
+    const { data, error } = await admin.from('sf_staff').select('username, full_name').eq('user_id', userId).maybeSingle();
+    must({ error });
+    return data ? { username: data.username as string, full_name: data.full_name as string } : null;
+  },
+  // audit trail: written with the service role (the app itself cannot write to sf_audit)
+  async audit(row: { user_id: string; action: string; detail: Record<string, unknown> }) {
+    const { data } = await admin.from('sf_staff').select('username, full_name').eq('user_id', row.user_id).maybeSingle();
+    must(await admin.from('sf_audit').insert({ user_id: row.user_id, username: data ? data.username : null, full_name: data && data.full_name ? data.full_name : null, action: row.action, detail: row.detail }));
+  },
 };
 
 Deno.serve(async (req) => {

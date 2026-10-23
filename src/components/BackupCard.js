@@ -9,7 +9,7 @@ import { colors, radius } from '../theme';
 
 // Admin > Backup and restore.
 export default function BackupCard() {
-  const { state, restoreBackup, pending } = useStore();
+  const { state, restoreBackup, pending, api } = useStore();
   const [message, setMessage] = useState(null); // { text, error? }
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasted, setPasted] = useState('');
@@ -18,6 +18,7 @@ export default function BackupCard() {
     try {
       const now = new Date();
       const how = await saveBackupFile(buildBackup(state, now), backupFileName(now));
+      if (api) api.logAudit('backup.download'); // audit trail
       setMessage({ text: how === 'downloaded' ? 'Backup downloaded. Keep the file somewhere safe.' : 'Backup ready. Save or send it from the share sheet.' });
     } catch (e) {
       setMessage({ text: e && e.message ? e.message : 'Cannot make the backup.', error: true });

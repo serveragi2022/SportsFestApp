@@ -108,7 +108,88 @@ await denied('authenticated', BEN, `insert into sf_results (game_id,match_no,win
 // admin can do everything else
 await ok('authenticated', ADMIN, `update sf_master_teams set name = 'Ambassadors' where name = 'Ambassador'`);
 r = await ok('authenticated', ADMIN, `delete from sf_results returning *`); assert.ok(r.rows.length >= 3);
+// ---- audit trail
+const audit = async (where = '') => (await db.query(`select * from sf_audit ${where} order by id`)).rows;
+{
+  const before = (await audit()).length;
+  assert.ok(before > 0, 'earlier changes were logged');
+
+  // Ana (committee) sets a winner in chess: logged with HER name, the game and the team name
+  await ok('authenticated', ANA, `insert into sf_results (game_id,match_no,winner,score1,score2) values ('chess',20,2,null,null)`);
+  let rows = await audit(`where id > (select coalesce(max(id),0) from sf_audit) - 1`);
+  let last = rows[rows.length - 1];
+  assert.equal(last.action, 'result.set'); assert.equal(last.username, 'ana'); assert.equal(last.full_name, 'Ana'); assert.equal(last.game_id, 'chess');
+  assert.equal(last.detail.match_no, 20); assert.equal(last.detail.winner, 2); assert.ok(last.detail.winner_name);
+
+  // changing the winner logs the old one too; saving the same value again logs nothing
+  await ok('authenticated', ANA, `insert into sf_results (game_id,match_no,winner) values ('chess',20,3) on conflict (game_id,match_no) do update set winner = excluded.winner`);
+  last = (await audit()).pop();
+  assert.equal(last.action, 'result.change'); assert.equal(last.detail.from_winner, 2); assert.equal(last.detail.winner, 3);
+  const n1 = (await audit()).length;
+  await ok('authenticated', ANA, `insert into sf_results (game_id,match_no,winner) values ('chess',20,3) on conflict (game_id,match_no) do update set winner = excluded.winner`);
+  assert.equal((await audit()).length, n1, 'same value is not logged again');
+
+  // clearing, tie-break, committee name, match time, placement, team name
+  await ok('authenticated', ANA, `delete from sf_results where game_id = 'chess' and match_no = 20`);
+  assert.equal((await audit()).pop().action, 'result.clear');
+  await ok('authenticated', ANA, `insert into sf_tiebreak (game_id,team_no) values ('darts',4) on conflict (game_id) do update set team_no = excluded.team_no`);
+  assert.equal((await audit()).pop().action, 'tiebreak.set');
+  await ok('authenticated', ADMIN, `insert into sf_committee (game_id,role,name) values ('chess','Scorekeeper','Eagle') on conflict (game_id,role) do update set name = excluded.name`);
+  last = (await audit()).pop(); assert.equal(last.action, 'committee.set'); assert.equal(last.detail.name, 'Eagle'); assert.equal(last.username, 'boss');
+  await ok('authenticated', ADMIN, `insert into sf_committee (game_id,role,name) values ('chess','Scorekeeper','Hawk') on conflict (game_id,role) do update set name = excluded.name`);
+  last = (await audit()).pop(); assert.equal(last.detail.from_name, 'Eagle'); assert.equal(last.detail.name, 'Hawk');
+  await ok('authenticated', ADMIN, `insert into sf_match_times (game_id,match_no,time_text) values ('basketball',1,'9:20 - 10:01') on conflict (game_id,match_no) do update set time_text = excluded.time_text`);
+  assert.equal((await audit()).pop().action, 'time.set');
+  await ok('authenticated', ADMIN, `insert into sf_placements (event_id,place,department) values ('muse',1,'AUDIT-DEPT') on conflict (event_id,place) do update set department = excluded.department`);
+  last = (await audit()).pop(); assert.equal(last.action, 'placement.set'); assert.equal(last.game_id, 'muse');
+  await ok('authenticated', ADMIN, `insert into sf_master_teams (id,name,color) values (gen_random_uuid(),'Zebra','#000')`);
+  assert.equal((await audit()).pop().action, 'teamname.add');
+  await ok('authenticated', ADMIN, `insert into sf_rosters (game_id,team_no,master_id) select 'darts',5,id from sf_master_teams where name = 'Zebra'`);
+  last = (await audit()).pop(); assert.equal(last.action, 'roster.set'); assert.equal(last.detail.name, 'Zebra');
+
+  // a change that is refused is not logged
+  const n2 = (await audit()).length;
+  await denied('authenticated', BEN, `insert into sf_results (game_id,match_no,winner) values ('chess',30,1)`, 'refused');
+  assert.equal((await audit()).length, n2, 'refused change is not logged');
+
+  // accounts: games + role
+  await ok('authenticated', ADMIN, `insert into sf_staff_games (user_id,game_id) values ('${BEN}','darts')`);
+  last = (await audit()).pop(); assert.equal(last.action, 'account.game.add'); assert.equal(last.detail.username, 'ben');
+  await ok('authenticated', ADMIN, `update sf_staff set full_name = 'Benjamin' where user_id = '${BEN}'`);
+  assert.equal((await audit()).pop().action, 'account.update');
+  await db.exec(`select set_config('request.jwt.claim.sub','',false); delete from sf_staff_games where user_id = '${BEN}' and game_id = 'darts'`); // no login (SQL editor / Edge Function): account tables are skipped
+  assert.equal((await audit()).pop().action, 'account.update', 'no login = not logged for account tables');
+
+  // login log + failed login + the actions the app may write
+  await ok('authenticated', ANA, `select sf_audit_log('login')`);
+  last = (await audit()).pop(); assert.equal(last.action, 'login'); assert.equal(last.username, 'ana');
+  await ok('anon', '', `select sf_audit_login_failed('ana')`);
+  last = (await audit()).pop(); assert.equal(last.action, 'login.failed'); assert.equal(last.user_id, null); assert.equal(last.detail.login, 'ana');
+  await denied('anon', '', `select sf_audit_log('login')`, 'anon cannot write audit rows');
+  await denied('authenticated', ANA, `select sf_audit_log('result.set')`, 'cannot fake a winner entry');
+  await ok('authenticated', ANA, `select sf_audit_log('reset.game', 'chess', '{"x":1}'::jsonb)`);
+  last = (await audit()).pop(); assert.equal(last.action, 'reset.game'); assert.equal(last.game_id, 'chess');
+  await denied('authenticated', NOBODY, `select sf_audit_log('reset.all')`, 'a non-staff login cannot write a reset marker');
+  await ok('authenticated', NOBODY, `select sf_audit_log('login')`);
+  for (let i = 0; i < 30; i++) await ok('anon', '', `select sf_audit_login_failed('x${i}')`);
+  const failed = (await audit(`where action = 'login.failed' and at > now() - interval '1 minute'`)).length;
+  assert.ok(failed <= 20, 'failed logins are capped at 20 per minute (' + failed + ')');
+
+  // who can read it: admin only
+  r = await ok('authenticated', ADMIN, `select count(*)::int c from sf_audit`); assert.ok(r.rows[0].c > 10);
+  await noRows('authenticated', ANA, `select * from sf_audit`, 'committee cannot read the audit trail');
+  await denied('anon', '', `select * from sf_audit`, 'guest cannot read the audit trail');
+
+  // nobody can write / change / delete it from the app, and the trigger blocks even the owner
+  await denied('authenticated', ADMIN, `insert into sf_audit (action) values ('fake')`, 'admin cannot insert');
+  await denied('authenticated', ADMIN, `update sf_audit set username = 'x'`, 'admin cannot update');
+  await denied('authenticated', ADMIN, `delete from sf_audit`, 'admin cannot delete');
+  await assert.rejects(() => db.exec(`update sf_audit set username = 'x'`), /cannot be changed/, 'owner cannot update');
+  await assert.rejects(() => db.exec(`delete from sf_audit`), /cannot be changed/, 'owner cannot delete');
+  await assert.rejects(() => db.exec(`truncate sf_audit`), /cannot be changed/, 'owner cannot truncate');
+}
+
 // deleting a login removes staff rows
 await db.exec(`delete from auth.users where id = '${ANA}'`);
 r = await db.query(`select count(*)::int c from sf_staff_games where user_id = '${ANA}'`); assert.equal(r.rows[0].c, 0);
-console.log('RLS TESTS PASSED (committee, admin, guest)');
+console.log('RLS TESTS PASSED (committee, admin, guest, audit trail)');

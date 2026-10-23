@@ -21,11 +21,11 @@ export const deptColor = (d) => {
 // Starting list of team names (local mode starts with these; for Supabase run supabase/seed_teams.sql).
 export const DEFAULT_TEAMS = [
   ['Magnificent1', 'EEG/CC'],
-  ['Tulip', 'SALES'],
+  ['Pinabuo1', 'SALES'],
   ['Windmill1', 'ACC/FIN'],
   ['Windmill2', 'ACC/FIN'],
-  ['Banahaw1', 'WH/PPD'],
-  ['Banahaw2', 'WH/PPD'],
+  ['Mayon1', 'WH/PPD'],
+  ['Mayon2', 'WH/PPD'],
   ['President1', 'KZN/MMG'],
   ['President2', 'KZN/MMG'],
   ['Supreme1', 'PRD'],

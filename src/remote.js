@@ -22,6 +22,7 @@ export const TABLES = {
   admins: 'sf_admins',
   staff: 'sf_staff',
   staffGames: 'sf_staff_games',
+  audit: 'sf_audit',
 };
 
 import { sortTeams } from './data/departments.js';
@@ -69,6 +70,26 @@ export function makeRemote(client) {
     if (error) throw new Error(error.message || String(error));
   };
   const db = (name) => client.from(name);
+
+  // erases every Sports Fest table (not the accounts, not the audit trail)
+  const wipeEverything = async () => {
+    check(await db(TABLES.results).delete().neq('game_id', ''));
+    check(await db(TABLES.tiebreak).delete().neq('game_id', ''));
+    check(await db(TABLES.committee).delete().neq('game_id', ''));
+    await db(TABLES.times).delete().neq('game_id', '');
+    await db(TABLES.placements).delete().neq('event_id', '');
+    check(await db(TABLES.rosters).delete().neq('game_id', ''));
+    check(await db(TABLES.masters).delete().not('id', 'is', null));
+  };
+
+  // Writes a line to the audit trail (see supabase/schema.sql). It must never stop what the person is doing.
+  const logAudit = async (action, gameId = null, detail = {}) => {
+    try {
+      if (client.rpc) await client.rpc('sf_audit_log', { p_action: action, p_game: gameId, p_detail: detail });
+    } catch (e) {
+      // ignore
+    }
+  };
 
   // Calls the sf-admin Edge Function and turns every failure into a readable message.
   const callFunction = async (body) => {
@@ -170,6 +191,38 @@ export function makeRemote(client) {
       if (gameIds.length) check(await db(TABLES.staffGames).insert(gameIds.map((game_id) => ({ user_id: userId, game_id }))));
     },
 
+    // ---- audit trail (admins read it; the database writes the lines about changes by itself)
+    logAudit,
+
+    async logLoginFailed(login) {
+      try {
+        if (client.rpc) await client.rpc('sf_audit_login_failed', { p_login: String(login || '').slice(0, 40) });
+      } catch (e) {
+        // ignore
+      }
+    },
+
+    // newest first. before = id of the oldest line already shown. actions = only these actions (null = all)
+    async getAudit({ limit = 100, before = null, actions = null, userId = null, gameId = null } = {}) {
+      let q = db(TABLES.audit).select('*').order('id', { ascending: false }).limit(limit);
+      if (before != null) q = q.lt('id', before);
+      if (actions && actions.length) q = q.in('action', actions);
+      if (userId) q = q.eq('user_id', userId);
+      if (gameId) q = q.eq('game_id', gameId);
+      const res = await q;
+      check(res);
+      return (res.data || []).map((r) => ({
+        id: r.id,
+        at: r.at,
+        userId: r.user_id,
+        username: r.username || '',
+        fullName: r.full_name || '',
+        action: r.action,
+        gameId: r.game_id || null,
+        detail: r.detail || {},
+      }));
+    },
+
     // clearNos: later matches that depended on the old winner (their results are removed)
     async setResult(gameId, matchNo, winner, scores, clearNos = []) {
       if (clearNos.length) check(await db(TABLES.results).delete().eq('game_id', gameId).in('match_no', clearNos));
@@ -258,29 +311,27 @@ export function makeRemote(client) {
     },
 
     async resetGame(gameId) {
+      await logAudit('reset.game', gameId);
       check(await db(TABLES.results).delete().eq('game_id', gameId));
       check(await db(TABLES.tiebreak).delete().eq('game_id', gameId));
     },
 
     async resetAllResults() {
+      await logAudit('reset.results');
       check(await db(TABLES.results).delete().neq('game_id', ''));
       check(await db(TABLES.tiebreak).delete().neq('game_id', ''));
     },
 
     async resetEverything() {
-      check(await db(TABLES.results).delete().neq('game_id', ''));
-      check(await db(TABLES.tiebreak).delete().neq('game_id', ''));
-      check(await db(TABLES.committee).delete().neq('game_id', ''));
-      await db(TABLES.times).delete().neq('game_id', '');
-      await db(TABLES.placements).delete().neq('event_id', '');
-      check(await db(TABLES.rosters).delete().neq('game_id', ''));
-      check(await db(TABLES.masters).delete().not('id', 'is', null));
+      await logAudit('reset.all');
+      await wipeEverything();
     },
 
     // Restore a backup (admin only): everything is erased, then the backup rows are written back (teams first).
     async restoreAll(data) {
       const rows = dataToRows(data);
-      await this.resetEverything();
+      await logAudit('backup.restore', null, { teamNames: rows.masters.length, results: rows.results.length, committee: rows.committee.length, times: rows.times.length });
+      await wipeEverything();
       const insert = async (table, list) => {
         if (list.length) check(await db(table).insert(list));
       };

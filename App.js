@@ -17,6 +17,7 @@ import WinnersScreen from './src/screens/WinnersScreen';
 import StandingsScreen from './src/screens/StandingsScreen';
 import AdminScreen from './src/screens/AdminScreen';
 import AccountsScreen from './src/screens/AccountsScreen';
+import AuditScreen from './src/screens/AuditScreen';
 import EventScreen from './src/screens/EventScreen';
 import LiveBoardScreen from './src/screens/LiveBoardScreen';
 import { useFonts, BarlowCondensed_700Bold, BarlowCondensed_800ExtraBold } from '@expo-google-fonts/barlow-condensed';
@@ -81,6 +82,7 @@ function Root() {
         <Stack.Screen name="Live" component={LiveBoardScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Event" component={EventScreen} options={({ route }) => ({ title: route.params.eventId === 'muse' ? 'Mr & Ms Team Ambassador' : 'Cheer Dance' })} />
         <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: 'Accounts' }} />
+        <Stack.Screen name="Audit" component={AuditScreen} options={{ title: 'Audit trail' }} />
       </Stack.Navigator>
     </NavigationContainer>
     </View>

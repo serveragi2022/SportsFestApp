@@ -17,6 +17,9 @@ export interface Deps {
   insertAdmin(userId: string): Promise<void>;
   setGames(userId: string, gameIds: string[]): Promise<void>;
   staffExists(userId: string): Promise<boolean>;
+  // optional: audit trail (who created / deleted an account or reset a password). A failure here never blocks the action.
+  staffInfo?(userId: string): Promise<{ username: string; full_name: string } | null>;
+  audit?(row: { user_id: string; action: string; detail: Record<string, unknown> }): Promise<void>;
 }
 
 export type Result = { status: number; body: Record<string, unknown> };
@@ -35,6 +38,20 @@ export async function handle(authHeader: string | null, body: any, deps: Deps): 
   if (!(await deps.isAdmin(caller.id))) return fail(403, 'Only admins can manage accounts.');
 
   const action = body && body.action;
+  const log = async (act: string, detail: Record<string, unknown>) => {
+    try {
+      if (deps.audit) await deps.audit({ user_id: caller.id, action: act, detail });
+    } catch (_e) {
+      // the audit trail must never stop an account change
+    }
+  };
+  const infoOf = async (userId: string) => {
+    try {
+      return deps.staffInfo ? await deps.staffInfo(userId) : null;
+    } catch (_e) {
+      return null;
+    }
+  };
 
   if (action === 'create') {
     const username = String(body.username || '').trim().toLowerCase();
@@ -62,6 +79,7 @@ export async function handle(authHeader: string | null, body: any, deps: Deps): 
       await deps.deleteUser(created.id).catch(() => {}); // do not leave a half-made account
       return fail(500, (e as Error).message || 'Could not save the account.');
     }
+    await log('account.create', { username, full_name: fullName, role, games: role === 'admin' ? [] : gameIds });
     return { status: 200, body: { ok: true, userId: created.id } };
   }
 
@@ -70,11 +88,13 @@ export async function handle(authHeader: string | null, body: any, deps: Deps): 
     if (!userId) return fail(400, 'Missing account.');
     if (userId === caller.id) return fail(400, 'You cannot delete your own account.');
     if (!(await deps.staffExists(userId))) return fail(404, 'Account not found.');
+    const info = await infoOf(userId);
     try {
       await deps.deleteUser(userId);
     } catch (e) {
       return fail(500, (e as Error).message || 'Could not delete the account.');
     }
+    await log('account.delete', { username: info ? info.username : null, full_name: info ? info.full_name : null });
     return { status: 200, body: { ok: true } };
   }
 
@@ -84,11 +104,13 @@ export async function handle(authHeader: string | null, body: any, deps: Deps): 
     if (!userId) return fail(400, 'Missing account.');
     if (password.length < 8) return fail(400, 'The password needs at least 8 characters.');
     if (!(await deps.staffExists(userId))) return fail(404, 'Account not found.');
+    const info = await infoOf(userId);
     try {
       await deps.setPassword(userId, password);
     } catch (e) {
       return fail(500, (e as Error).message || 'Could not change the password.');
     }
+    await log('account.password.reset', { username: info ? info.username : null, full_name: info ? info.full_name : null });
     return { status: 200, body: { ok: true } };
   }
 
@@ -148,6 +170,16 @@ const deps = {
     const { data, error } = await admin.from('sf_staff').select('user_id').eq('user_id', userId).maybeSingle();
     must({ error });
     return !!data;
+  },
+  async staffInfo(userId: string) {
+    const { data, error } = await admin.from('sf_staff').select('username, full_name').eq('user_id', userId).maybeSingle();
+    must({ error });
+    return data ? { username: data.username as string, full_name: data.full_name as string } : null;
+  },
+  // audit trail: written with the service role (the app itself cannot write to sf_audit)
+  async audit(row: { user_id: string; action: string; detail: Record<string, unknown> }) {
+    const { data } = await admin.from('sf_staff').select('username, full_name').eq('user_id', row.user_id).maybeSingle();
+    must(await admin.from('sf_audit').insert({ user_id: row.user_id, username: data ? data.username : null, full_name: data && data.full_name ? data.full_name : null, action: row.action, detail: row.detail }));
   },
 };
 

@@ -142,4 +142,32 @@ unsub(); assert.ok(c._removed);
   assert.deepEqual(c2.log[firstInsert].ops[0], ['insert', [{ id: 'm1', name: 'Ambassador1', color: '#111', department: 'Admin' }]]);
 }
 
+// audit trail: reading, markers for resets / restore / login, and a broken audit never blocks anything
+{
+  const rpcCalls = [];
+  const c3 = fakeClient({ sf_audit: [{ id: 5, at: '2026-10-22T08:00:00Z', user_id: 'u1', username: 'ana', full_name: 'Ana', action: 'result.set', game_id: 'chess', detail: { match_no: 1 } }, { id: 4, at: '2026-10-22T07:00:00Z', user_id: null, username: null, full_name: null, action: 'login.failed', game_id: null, detail: null }] });
+  c3.rpc = async (fn, args) => { rpcCalls.push([fn, args]); return { error: null }; };
+  const r3 = makeRemote(c3);
+  const rows = await r3.getAudit({ limit: 50, before: 9, actions: ['result.set', 'login.failed'], gameId: 'chess', userId: 'u1' });
+  assert.deepEqual(rows[0], { id: 5, at: '2026-10-22T08:00:00Z', userId: 'u1', username: 'ana', fullName: 'Ana', action: 'result.set', gameId: 'chess', detail: { match_no: 1 } });
+  assert.deepEqual(rows[1], { id: 4, at: '2026-10-22T07:00:00Z', userId: null, username: '', fullName: '', action: 'login.failed', gameId: null, detail: {} });
+  assert.equal(last(c3).table, TABLES.audit);
+  assert.deepEqual(last(c3).ops, [['select', '*'], ['order', 'id', { ascending: false }], ['limit', 50], ['lt', 'id', 9], ['in', 'action', ['result.set', 'login.failed']], ['eq', 'user_id', 'u1'], ['eq', 'game_id', 'chess']]);
+
+  await r3.resetGame('chess');
+  await r3.resetAllResults();
+  await r3.resetEverything();
+  await r3.restoreAll({ masterTeams: [], rosters: {}, results: { chess: { 1: 2 } }, scores: {}, tiebreak: {}, committee: {}, times: {}, placements: {} });
+  await r3.logLoginFailed('ana');
+  assert.deepEqual(rpcCalls.map((x) => x[0]), ['sf_audit_log', 'sf_audit_log', 'sf_audit_log', 'sf_audit_log', 'sf_audit_login_failed']);
+  assert.deepEqual(rpcCalls.map((x) => x[1].p_action || x[1].p_login), ['reset.game', 'reset.results', 'reset.all', 'backup.restore', 'ana']);
+  assert.equal(rpcCalls[0][1].p_game, 'chess');
+  assert.equal(rpcCalls[3][1].p_detail.results, 1);
+
+  // an audit function that fails (not installed yet, offline ...) never blocks the reset
+  const c4 = fakeClient(); c4.rpc = async () => { throw new Error('function does not exist'); };
+  await makeRemote(c4).resetGame('chess');
+  assert.equal(c4.log.length, 2, 'both deletes still ran');
+}
+
 console.log('REMOTE TESTS PASSED');

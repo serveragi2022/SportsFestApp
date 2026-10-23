@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { handle } from '../supabase/functions/sf-admin/handler.ts';
 
-function deps({ admin = true, caller = { id: 'admin1', email: 'a@x.com' }, createFails, insertFails } = {}) {
+function deps({ admin = true, caller = { id: 'admin1', email: 'a@x.com' }, createFails, insertFails, auditFails } = {}) {
   const log = [];
   return {
     log,
@@ -14,6 +14,8 @@ function deps({ admin = true, caller = { id: 'admin1', email: 'a@x.com' }, creat
     insertAdmin: async (id) => { log.push(['insertAdmin', id]); },
     setGames: async (id, g) => { log.push(['setGames', id, g]); },
     staffExists: async (id) => id !== 'ghost',
+    staffInfo: async (id) => ({ username: 'user-' + id, full_name: 'Name ' + id }),
+    audit: async (row) => { if (auditFails) throw new Error('audit down'); log.push(['audit', row]); },
   };
 }
 const H = 'Bearer good';
@@ -33,13 +35,14 @@ assert.deepEqual(d.log, [
   ['createUser', 'ana.cruz@sportsfest.example.com', 'secret123'],
   ['insertStaff', { user_id: 'u9', username: 'ana.cruz', email: 'ana.cruz@sportsfest.example.com', full_name: 'Ana Cruz', role: 'committee' }],
   ['setGames', 'u9', ['chess', 'darts']],
+  ['audit', { user_id: 'admin1', action: 'account.create', detail: { username: 'ana.cruz', full_name: 'Ana Cruz', role: 'committee', games: ['chess', 'darts'] } }],
 ]);
 
 // create admin account: no games, also inserted into sf_admins
 d = deps();
 r = await handle(H, { ...create, role: 'admin' }, d);
 assert.equal(r.status, 200);
-assert.deepEqual(d.log.map((x) => x[0]), ['createUser', 'insertStaff', 'insertAdmin']);
+assert.deepEqual(d.log.map((x) => x[0]), ['createUser', 'insertStaff', 'insertAdmin', 'audit']);
 
 // validation
 assert.equal((await handle(H, { ...create, username: 'a b' }, deps())).status, 400, 'no spaces');
@@ -59,14 +62,24 @@ assert.deepEqual(d.log.at(-1), ['deleteUser', 'u9']);
 // delete
 d = deps();
 assert.equal((await handle(H, { action: 'delete', userId: 'u5' }, d)).status, 200);
-assert.deepEqual(d.log, [['deleteUser', 'u5']]);
+assert.deepEqual(d.log, [['deleteUser', 'u5'], ['audit', { user_id: 'admin1', action: 'account.delete', detail: { username: 'user-u5', full_name: 'Name u5' } }]]);
 assert.equal((await handle(H, { action: 'delete', userId: 'admin1' }, deps())).status, 400, 'cannot delete yourself');
 assert.equal((await handle(H, { action: 'delete', userId: 'ghost' }, deps())).status, 404);
 
 // password
 d = deps();
 assert.equal((await handle(H, { action: 'password', userId: 'u5', password: 'newpass1' }, d)).status, 200);
-assert.deepEqual(d.log, [['setPassword', 'u5', 'newpass1']]);
+assert.deepEqual(d.log, [['setPassword', 'u5', 'newpass1'], ['audit', { user_id: 'admin1', action: 'account.password.reset', detail: { username: 'user-u5', full_name: 'Name u5' } }]]);
+assert.ok(!JSON.stringify(d.log.at(-1)).includes('newpass1'), 'the password is never written to the audit trail');
+
+// a broken audit trail never blocks the action
+d = deps({ auditFails: true });
+assert.equal((await handle(H, { action: 'password', userId: 'u5', password: 'newpass1' }, d)).status, 200);
+assert.equal((await handle(H, create, deps({ auditFails: true }))).status, 200);
+// a failed action is not logged
+d = deps({ insertFails: true });
+await handle(H, create, d);
+assert.ok(!d.log.some((x) => x[0] === 'audit'));
 assert.equal((await handle(H, { action: 'password', userId: 'u5', password: 'x' }, deps())).status, 400);
 
 assert.equal((await handle(H, { action: 'boom' }, deps())).status, 400);

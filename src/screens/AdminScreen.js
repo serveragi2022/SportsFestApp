@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { emailToUsername } from '../permissions';
 import GameIcon from '../components/GameIcon';
 import BackupCard from '../components/BackupCard';
+import ChangePasswordCard from '../components/ChangePasswordCard';
 import { Button, Card, Chip, FilterChip, PickerModal, SectionTitle, TextPromptModal } from '../components/ui';
 import { colors, radius } from '../theme';
 
@@ -157,6 +158,16 @@ function AdminTools({ navigation }) {
         {mode === 'cloud' ? <Button title="Manage accounts" icon="key" onPress={() => navigation.navigate('Accounts')} style={{ marginTop: 12 }} /> : null}
       </Card>
 
+      <SectionTitle>Audit trail</SectionTitle>
+      <Card>
+        <Text style={styles.note}>
+          {mode === 'cloud'
+            ? 'See who signed in, who set each winner and every other change, with the date and time.'
+            : 'The audit trail needs Supabase. Set it up (see the README).'}
+        </Text>
+        {mode === 'cloud' ? <Button title="Open audit trail" icon="list" onPress={() => navigation.navigate('Audit')} style={{ marginTop: 12 }} /> : null}
+      </Card>
+
       <SectionTitle right={<Button title="Add" icon="add" small onPress={() => setEditor({ name: '', department: '', color: TEAM_COLORS[state.masterTeams.length % TEAM_COLORS.length] })} />}>Team names</SectionTitle>
       <Text style={styles.note}>List of the team names taking part. Pick from this list when naming Team 1, Team 2, … of each game. One name can be used by several teams.</Text>
       {state.masterTeams.length === 0 ? <Text style={styles.empty}>No team names yet. Tap “Add”.</Text> : null}
@@ -250,6 +261,7 @@ export default function AdminScreen({ navigation }) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: 16, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
         <StatusCard />
+        {access.role === 'admin' || access.role === 'committee' ? <ChangePasswordCard /> : null}
         {access.role === 'admin' ? <AdminTools navigation={navigation} /> : access.role === 'committee' ? <CommitteeTools navigation={navigation} /> : <LoginCard />}
       </ScrollView>
     </KeyboardAvoidingView>

@@ -71,6 +71,21 @@ Test locally: `npm run build:web && npx serve dist`.
 Rotates: **Standings** (all teams, split into pages only when the screen is too small), **Game progress** (round being played and matches done per game), **Champions**.
 All games run at the same time, so there is no "Up next" / "Ready to play" list.
 
+## Audit trail (Admin > Audit trail)
+Shows, newest first, **who** did **what** and **when**: sign-ins, sign-outs, wrong passwords, password changes, every winner / points / tie-break set or changed
+(with the old value), team names and team slots, committee names, match times, Cheer Dance / Mr & Ms places, accounts and game access, resets and backups.
+- Written by **database triggers** (`supabase/schema.sql`), with the account taken from the login, so the app cannot fake or skip it. Only admins can read it.
+  Nobody can edit or delete lines from the app, and a trigger blocks it even in SQL (see the comment in the schema to clear it on purpose).
+- A save that changes nothing is not logged. Many lines of the same person within 10 seconds (a reset, a restore) are folded into one row you can open.
+- Filters: Logins, Winners & points, Teams & setup, Accounts, Resets & backups. **Export to Excel (CSV)** downloads the lines of the current filter.
+- Account created / deleted / password reset by an admin are written by the `sf-admin` Edge Function. **Redeploy it** (`supabase functions deploy sf-admin --no-verify-jwt`, or paste `dashboard-single-file.ts`) to get those lines.
+- Failed logins are recorded with the username that was typed (at most 20 per minute, so nobody can flood the table).
+- To turn it on for an existing project: run `supabase/schema.sql` again in the SQL Editor (safe to repeat). Tests: `node scripts/test-audit.mjs`, `node scripts/test-rls.mjs`.
+
+## Change my password
+Every signed-in committee or admin account has **My password** on the Admin tab: current password, new password (at least 8 characters), new password again.
+It is logged in the audit trail (never the password itself). An admin can still reset any password in Admin > Accounts.
+
 ## Security checklist (do before the event)
 What is already protected: the database itself decides who can write (row level security), not only the app. Guests can only read;
 a committee account can only write in its assigned games; only admins can create accounts, name teams, reset or delete.

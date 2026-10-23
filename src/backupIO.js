@@ -1,9 +1,9 @@
 import { Platform, Share } from 'react-native';
 
 // Saves the backup text. Web: downloads a .json file. Phone: opens the share sheet (save to Files, send by Messenger / email, ...).
-export async function saveBackupFile(json, fileName) {
+export async function saveBackupFile(json, fileName, mime = 'application/json') {
   if (Platform.OS === 'web') {
-    const blob = new Blob([json], { type: 'application/json' });
+    const blob = new Blob([json], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
