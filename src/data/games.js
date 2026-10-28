@@ -47,7 +47,7 @@ export const GAMES = [
       ['Medical / First Aid (shared)', 'April'],
     ],
   },
-  {
+    {
     id: 'badminton-ws',
     name: "Badminton Women's Singles",
     short: 'Badminton (WS)',
@@ -88,18 +88,9 @@ export const GAMES = [
     venue: 'Court 2',
     teams: 6,
     rounds: [
-      {
-        name: 'Round 1: Semi-Finals',
-        type: 'elim',
-        matches: [m(1, [T(1), T(2)], { time: '8:00 - 8:30' }), m(2, [T(3), T(4)], { time: '8:30 - 9:00' }), m(3, [T(5), T(6)], { time: '9:00 - 9:30' })],
-      },
+      { name: 'Round 1: Semi-Finals', type: 'elim', matches: [m(1, [T(1), T(2)]), m(2, [T(3), T(4)]), m(3, [T(5), T(6)])] },
       // Championship = round robin of the 3 semi-final winners. Points are only used when the wins are level.
-      {
-        name: 'Round 2: Championship (Round Robin)',
-        type: 'robin',
-        scoring: true,
-        matches: [m(4, [W(1), W(2)], { time: '9:30 - 10:00' }), m(5, [W(3), W(2)], { time: '10:00 - 10:30' }), m(6, [W(1), W(3)], { time: '10:30 - 11:00' })],
-      },
+      { name: 'Round 2: Championship (Round Robin)', type: 'robin', scoring: true, matches: [m(4, [W(1), W(2)]), m(5, [W(3), W(2)]), m(6, [W(1), W(3)])] },
     ],
     committee: [
       ['Tournament Head', 'Nicko Mantuano'],
@@ -116,7 +107,8 @@ export const GAMES = [
     rounds: [
       { name: 'Round 1: Qualifying Round', type: 'elim', matches: [m(1, [T(1), T(5)])] },
       { name: 'Round 2: Semi-Finals', type: 'elim', matches: [m(2, [T(2), T(3)]), m(3, [T(4), W(1)])] },
-      { name: 'Round 3: Championship', type: 'elim', matches: [m(4, [W(2), W(3)])] },
+      // Final is played on Court 1
+      { name: 'Round 3: Championship', type: 'elim', matches: [m(4, [W(2), W(3)], { venue: 'Court 1' })] },
     ],
     committee: [
       ['Tournament Head', 'Nicko Mantuano'],
