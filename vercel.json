@@ -25,7 +25,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+          "value": "camera=(self \"https://vdo.ninja\"), microphone=(self \"https://vdo.ninja\"), geolocation=(), payment=()"
         },
         {
           "key": "Strict-Transport-Security",

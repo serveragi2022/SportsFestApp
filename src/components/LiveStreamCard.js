@@ -5,6 +5,10 @@ import { Button, Card } from './ui';
 import { colors, radius } from '../theme';
 import { fetchStream, loadPassword, newStreamId, pushUrl, savePassword, startStream, stopStream, viewUrl, watchStream } from '../streams';
 
+// true  = the camera page is shown inside this screen (web). Needs the site's camera permission to be allowed in the browser.
+// false = "Go live" opens the camera page in its own tab (most reliable, also on iPhone). Viewers still watch inside the app.
+const CAMERA_IN_PAGE = true;
+
 // Live tab of a game screen. Everything happens inside the site (no leaving the app) on the web / PWA.
 //  - Viewers (anyone): see "LIVE", type the stream password once, watch.
 //  - Committee assigned to the game, or an admin: "Go live" shows the camera right here and starts streaming. One streamer per game.
@@ -42,7 +46,7 @@ export default function LiveStreamCard({ gameId }) {
 
   // open the camera: inside the page on web, in the browser on the phone app
   const openCamera = (id) => {
-    if (Platform.OS === 'web') setCamOn(true);
+    if (Platform.OS === 'web' && CAMERA_IN_PAGE) setCamOn(true);
     else Linking.openURL(pushUrl(id, pw.trim()));
   };
 
@@ -101,10 +105,12 @@ export default function LiveStreamCard({ gameId }) {
             <TextInput value={pw} onChangeText={setPw} placeholder="Stream password" autoCapitalize="none" autoCorrect={false} style={styles.input} />
           ) : null}
 
+          {iAmStreamer && !camOn ? <Text style={styles.muted}>The camera opens in its own tab. Keep that tab open while streaming, then come back here and press End stream when the game is done.</Text> : null}
+
           {iAmStreamer && camOn && Platform.OS === 'web' ? (
             <>
               <Frame url={pushUrl(row.stream_id, pw.trim())} camera />
-              <Text style={styles.muted}>Allow the camera and microphone if asked. Keep this screen open while streaming. Press End stream when the game is done.</Text>
+              <Text style={styles.muted}>Camera not starting here? Press Open in new tab. Keep this screen open while streaming. Press End stream when the game is done.</Text>
             </>
           ) : null}
 
