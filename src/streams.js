@@ -6,19 +6,23 @@ import { supabase, isSupabaseConfigured } from './supabase';
 const HOST = 'https://vdo.ninja/';
 const pwKey = (gameId) => `sf.stream.pw.${gameId}`;
 
+// VDO.Ninja only keeps letters, numbers and underscore in a stream ID (it turns anything else, like "-", into "_").
+// The camera page and the viewer page must use the exact same ID, so both links always go through vdoId().
+export const vdoId = (id) => String(id).replace(/[^A-Za-z0-9_]/g, '_');
+
 export const newStreamId = (gameId) =>
-  `agi26-${String(gameId).replace(/[^a-z0-9]/gi, '')}-${Math.random().toString(36).slice(2, 8)}${Math.random().toString(36).slice(2, 6)}`;
+  `agi26_${String(gameId).replace(/[^a-z0-9]/gi, '')}_${Math.random().toString(36).slice(2, 8)}${Math.random().toString(36).slice(2, 6)}`;
 
 // link the viewers watch
 export function viewUrl(streamId, password) {
-  const q = [`view=${encodeURIComponent(streamId)}`];
+  const q = [`view=${encodeURIComponent(vdoId(streamId))}`];
   if (password) q.push(`password=${encodeURIComponent(password)}`);
   return `${HOST}?${q.join('&')}`;
 }
 
 // link the person who films opens on the phone that does the filming
 export function pushUrl(streamId, password) {
-  const q = [`push=${encodeURIComponent(streamId)}`];
+  const q = [`push=${encodeURIComponent(vdoId(streamId))}`];
   if (password) q.push(`password=${encodeURIComponent(password)}`);
   q.push('webcam', 'autostart');
   return `${HOST}?${q.join('&')}`;
