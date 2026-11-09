@@ -7,13 +7,13 @@ import { fetchStream, loadPassword, newStreamId, pushUrl, savePassword, startStr
 
 // Live tab of a game screen.
 //  - Viewers (anyone): see "LIVE", type the stream password once, watch.
-//  - Committee assigned to the game: "Go live" (opens the camera page on this phone) and "End stream". One streamer per game.
-//  - Admin: cannot stream, can force-end a stream that got stuck.
+//  - Committee assigned to the game, or an admin: "Go live" (opens the camera page on this phone) and "End stream". One streamer per game.
+//  - Admin can also end a stream someone else started (e.g. their phone died).
 export default function LiveStreamCard({ gameId }) {
   const { access, session, offline } = useStore();
-  // only a COMMITTEE account assigned to this game streams it (the database checks this too)
-  const canStream = access.role === 'committee' && (access.games || []).includes(gameId);
+  // a COMMITTEE account assigned to this game, or an admin, can stream it (the database checks this too)
   const isAdmin = access.role === 'admin';
+  const canStream = isAdmin || (access.role === 'committee' && (access.games || []).includes(gameId));
   const myId = session && session.user ? session.user.id : null;
   const [row, setRow] = useState(null);
   const [pw, setPw] = useState('');
@@ -102,16 +102,15 @@ export default function LiveStreamCard({ gameId }) {
 
       {canStream && someoneElse ? (
         <Card style={{ marginBottom: 12 }}>
-          <Text style={styles.muted}>{row.streamer_name || 'Another committee member'} is already streaming this game. You can stream again after they end it.</Text>
-        </Card>
-      ) : null}
-
-      {isAdmin && live ? (
-        <Card style={{ marginBottom: 12 }}>
-          <Text style={styles.muted}>Streaming: {row.streamer_name || 'a committee member'}. If their phone died, you can end it.</Text>
-          <View style={{ marginTop: 10 }}>
-            <Button title="Force end stream" icon="stop" kind="danger" small onPress={endStream} disabled={busy} />
-          </View>
+          <Text style={styles.muted}>
+            {row.streamer_name || 'Another committee member'} is already streaming this game.
+            {isAdmin ? ' If there is a problem (for example their phone died), you can end it.' : ' You can stream again after they end it.'}
+          </Text>
+          {isAdmin ? (
+            <View style={{ marginTop: 10 }}>
+              <Button title="End stream" icon="stop" kind="danger" small onPress={endStream} disabled={busy} />
+            </View>
+          ) : null}
         </Card>
       ) : null}
 

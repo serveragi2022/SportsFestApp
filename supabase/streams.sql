@@ -1,8 +1,8 @@
 -- Live stream per game (VDO.Ninja). Run once in the Supabase SQL Editor (safe to run again).
 -- Rules enforced HERE in the database, not only in the app:
---   * only a COMMITTEE account assigned to that game can start a stream for it
+--   * only a COMMITTEE account assigned to that game, or an ADMIN, can start a stream for it
 --   * only ONE streamer per game: while a stream is live, nobody else can start one
---   * only the person who is streaming can end it (an admin can force-end it, e.g. when a phone died)
+--   * only the person who is streaming, or an ADMIN (when something goes wrong), can end it
 --   * everyone (guests too) can read whether a game is live; the stream PASSWORD is never stored in the database
 create table if not exists public.sf_streams (
   game_id text primary key,
@@ -25,7 +25,7 @@ create policy sf_streams_read on public.sf_streams for select to anon, authentic
 revoke all on public.sf_streams from anon, authenticated;
 grant select on public.sf_streams to anon, authenticated;
 
--- committee account assigned to this game (admins are NOT included on purpose)
+-- committee account assigned to this game (admins are checked separately with sf_is_admin)
 create or replace function public.sf_is_game_committee(g text)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.sf_staff_games where user_id = auth.uid() and game_id = g);
@@ -38,8 +38,8 @@ declare
   n int;
   other text;
 begin
-  if auth.uid() is null or not public.sf_is_game_committee(g) then
-    raise exception 'Only the committee assigned to this game can stream it.';
+  if auth.uid() is null or not (public.sf_is_admin() or public.sf_is_game_committee(g)) then
+    raise exception 'Only the committee assigned to this game (or an admin) can stream it.';
   end if;
   if sid is null or sid !~ '^[A-Za-z0-9_-]{6,64}$' then
     raise exception 'Invalid stream id.';
@@ -48,7 +48,7 @@ begin
 
   -- one atomic statement: succeeds only if nobody is live on this game, or the live one is me (resuming)
   insert into public.sf_streams as s (game_id, stream_id, live, streamer_id, streamer_name, updated_at)
-  values (g, sid, true, auth.uid(), coalesce(nm, ''), now())
+  values (g, sid, true, auth.uid(), coalesce(nm, case when public.sf_is_admin() then 'Admin' else '' end), now())
   on conflict (game_id) do update
     set stream_id = excluded.stream_id, live = true, streamer_id = excluded.streamer_id,
         streamer_name = excluded.streamer_name, updated_at = now()
