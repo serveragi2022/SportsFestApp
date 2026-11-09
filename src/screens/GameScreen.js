@@ -8,6 +8,7 @@ import TeamChip from '../components/TeamChip';
 import TeamNamePicker from '../components/TeamNamePicker';
 import PlayersEditor from '../components/PlayersEditor';
 import OfflineBanner from '../components/OfflineBanner';
+import LiveStreamCard from '../components/LiveStreamCard';
 import { Trophy } from '../components/GameIcon';
 import { Button, Card, Chip, PressableScale, ProgressBar, Segmented } from '../components/ui';
 import { colors, radius, shadow } from '../theme';
@@ -69,6 +70,7 @@ export default function GameScreen({ route, navigation }) {
           { key: 'bracket', label: 'Bracket' },
           { key: 'teams', label: 'Teams' },
           { key: 'committee', label: 'Committee' },
+          { key: 'live', label: 'Live' },
         ]}
       />
 
@@ -77,6 +79,7 @@ export default function GameScreen({ route, navigation }) {
         {tab === 'bracket' && <BracketTab game={game} results={results} scores={scores} />}
         {tab === 'teams' && <TeamsTab game={game} />}
         {tab === 'committee' && <CommitteeTab game={game} />}
+        {tab === 'live' && <LiveStreamCard gameId={game.id} />}
       </View>
     </ScrollView>
   );
