@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useStore } from '../store';
 import { Button, Card } from './ui';
 import { colors, radius } from '../theme';
@@ -22,6 +22,7 @@ export default function LiveStreamCard({ gameId }) {
   const [pw, setPw] = useState('');
   const [watching, setWatching] = useState(false);
   const [camOn, setCamOn] = useState(false); // the camera page is open inside this screen
+  const [full, setFull] = useState(false); // the camera / player fills the whole screen
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -73,6 +74,7 @@ export default function LiveStreamCard({ gameId }) {
       await stopStream(gameId);
       setCamOn(false);
       setWatching(false);
+      setFull(false);
       await load();
     } catch (e) {
       setErr(e.message);
@@ -109,14 +111,15 @@ export default function LiveStreamCard({ gameId }) {
 
           {iAmStreamer && camOn && Platform.OS === 'web' ? (
             <>
-              <Frame url={pushUrl(row.stream_id, pw.trim())} camera />
-              <Text style={styles.muted}>Camera not starting here? Press Open in new tab. Keep this screen open while streaming. Press End stream when the game is done.</Text>
+              <Frame url={pushUrl(row.stream_id, pw.trim())} camera full={full} onExit={() => setFull(false)} />
+              <Text style={styles.muted}>For a wider picture, hold the phone sideways and press Fullscreen. Camera not starting here? Press Open in new tab. Keep this screen open while streaming. Press End stream when the game is done.</Text>
             </>
           ) : null}
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
             {!live ? <Button title="Go live" icon="videocam" kind="danger" onPress={goLive} disabled={busy || !!offline} /> : null}
             {iAmStreamer && !camOn ? <Button title="Open camera" icon="videocam" kind="primary" small onPress={() => openCamera(row.stream_id)} /> : null}
+            {iAmStreamer && camOn ? <Button title="Fullscreen" icon="expand" kind="primary" small onPress={() => setFull(true)} /> : null}
             {iAmStreamer && camOn ? <Button title="Open in new tab" kind="primary" small onPress={() => Linking.openURL(pushUrl(row.stream_id, pw.trim()))} /> : null}
             {iAmStreamer ? <Button title="End stream" icon="stop" kind="accent" small onPress={endStream} disabled={busy} /> : null}
           </View>
@@ -150,10 +153,11 @@ export default function LiveStreamCard({ gameId }) {
             </>
           ) : (
             <>
-              <Frame url={viewUrl(row.stream_id, pw.trim())} />
-              <Text style={styles.muted}>Black screen? Tap the video once to start it. If it stays black, the password may be wrong or the camera has not started yet.</Text>
+              <Frame url={viewUrl(row.stream_id, pw.trim())} full={full} onExit={() => setFull(false)} />
+              <Text style={styles.muted}>Turn the phone sideways and press Fullscreen for a bigger picture. Black screen? Tap the video once to start it. If it stays black, the password may be wrong or the camera has not started yet.</Text>
               <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <Button title="Change password" small kind="accent" onPress={() => setWatching(false)} />
+                <Button title="Fullscreen" icon="expand" small kind="primary" onPress={() => setFull(true)} />
+                <Button title="Change password" small kind="accent" onPress={() => { setWatching(false); setFull(false); }} />
                 <Button title="Open in new tab" small onPress={() => Linking.openURL(viewUrl(row.stream_id, pw.trim()))} />
               </View>
             </>
@@ -166,10 +170,11 @@ export default function LiveStreamCard({ gameId }) {
 
 // Web (the PWA): the VDO.Ninja page is shown inside this screen. Phone app builds: opens the browser (no extra package needed).
 // To embed inside the native app later: npx expo install react-native-webview and render <WebView source={{ uri: url }} allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} />
-function Frame({ url, camera }) {
+function Frame({ url, camera, full, onExit }) {
   if (Platform.OS !== 'web') return <Button title="Open" icon="play" onPress={() => Linking.openURL(url)} />;
+  // same elements in both modes: only the style changes, so the iframe is NOT reloaded (the camera keeps running)
   return (
-    <View style={styles.frame}>
+    <View style={full ? styles.fullFrame : [styles.frame, camera ? { aspectRatio: 4 / 3 } : null]}>
       {React.createElement('iframe', {
         src: url,
         allow: camera ? 'camera; microphone; autoplay; fullscreen; display-capture' : 'autoplay; fullscreen; picture-in-picture',
@@ -177,6 +182,11 @@ function Frame({ url, camera }) {
         style: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 },
         title: camera ? 'Camera' : 'Live stream',
       })}
+      {full ? (
+        <Pressable onPress={onExit} style={styles.exitBtn}>
+          <Text style={styles.exitText}>Exit fullscreen</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -188,5 +198,8 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, marginTop: 6 },
   err: { color: colors.warn, marginTop: 8, fontWeight: '700' },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, color: colors.text, backgroundColor: '#fff' },
+  fullFrame: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: '#000' },
+  exitBtn: { position: 'absolute', top: 12, right: 12, zIndex: 10000, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18 },
+  exitText: { color: '#fff', fontWeight: '800' },
   frame: { width: '100%', aspectRatio: 16 / 9, backgroundColor: '#000', borderRadius: 10, overflow: 'hidden', marginTop: 10 },
 });
