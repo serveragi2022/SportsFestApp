@@ -79,7 +79,10 @@ export default function GameScreen({ route, navigation }) {
         {tab === 'bracket' && <BracketTab game={game} results={results} scores={scores} />}
         {tab === 'teams' && <TeamsTab game={game} />}
         {tab === 'committee' && <CommitteeTab game={game} />}
-        {tab === 'live' && <LiveStreamCard gameId={game.id} />}
+        {/* always mounted (only hidden), so a running camera is not cut when the person switches tabs */}
+        <View style={tab === 'live' ? null : { display: 'none' }}>
+          <LiveStreamCard gameId={game.id} />
+        </View>
       </View>
     </ScrollView>
   );

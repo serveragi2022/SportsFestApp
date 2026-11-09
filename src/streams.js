@@ -13,7 +13,6 @@ export const newStreamId = (gameId) =>
 export function viewUrl(streamId, password) {
   const q = [`view=${encodeURIComponent(streamId)}`];
   if (password) q.push(`password=${encodeURIComponent(password)}`);
-  q.push('cleanoutput');
   return `${HOST}?${q.join('&')}`;
 }
 
@@ -21,7 +20,7 @@ export function viewUrl(streamId, password) {
 export function pushUrl(streamId, password) {
   const q = [`push=${encodeURIComponent(streamId)}`];
   if (password) q.push(`password=${encodeURIComponent(password)}`);
-  q.push('webcam');
+  q.push('webcam', 'autostart');
   return `${HOST}?${q.join('&')}`;
 }
 
